@@ -13,8 +13,9 @@ passed the verification gate in `../AGENTS.md`.
 
 ## Where we are
 
-Scaffolding is in place. The product has not been designed yet, and no application code
-has been written. The next working session is the design session.
+Scaffolding and design are done. No application code has been written yet. The next
+working session is the first build step: the grounding manifest and the validator, both
+of which are testable offline with no LLM, no frontend, and no Liara account.
 
 ## Settled
 
@@ -30,6 +31,12 @@ record why.
 | Language | Fully bilingual Persian/English with an explicit toggle |
 | Personalization | User accounts with a saved profile persisting across conversations |
 | Ports | Vite 5174, API 8002, Postgres 5434 |
+| Product shape | Four surfaces over one engine: Ask (cited chat), Diagnose (paste a log), Check (validate an existing config), Generate (artifacts from a described stack). See [`DESIGN.md`](DESIGN.md) |
+| Embeddings | BGE-M3 via OpenRouter — [`decisions/0001`](decisions/0001-embedding-model.md) |
+| Ingestion | Crawl rendered HTML — [`decisions/0002`](decisions/0002-ingestion-source.md) |
+| Config generation | LLM emits a typed spec; deterministic code writes every file — [`decisions/0003`](decisions/0003-llm-never-writes-config.md) |
+| Defective docs | Named below the answer with evidence — [`decisions/0004`](decisions/0004-defective-page-disclosure.md) |
+| Not building | Anything needing population-scale traffic, a mock Liara dashboard, voice, gamification. Full list in `DESIGN.md` §12 |
 
 ## Done
 
@@ -39,6 +46,10 @@ record why.
       names, image tag, uvicorn port, Vite port and proxy target, Playwright base URL
 - [x] `AGENTS.md` written, with `CLAUDE.md` symlinked to it
 - [x] `shadcn` skill installed project-locally at `.agents/skills/shadcn`
+- [x] Research: Liara's services, deploy journey and documentation defects; the docs-AI
+      competitive landscape; Persian/bilingual retrieval with measured benchmarks
+- [x] Divergent ideation across five isolated frames, scored and converged
+- [x] `docs/DESIGN.md` and the first four decision records
 
 ## In progress
 
@@ -46,23 +57,53 @@ Nothing.
 
 ## Next
 
-1. **Design session** — decide what the product actually is, beyond "a chatbot over the
-   docs", against the rubric. Produce `docs/DESIGN.md`.
-2. **Ingestion approach** — Liara publishes an LLM-ready mirror of its docs. Decide how
-   it is fetched, chunked, and refreshed, and record it in `DESIGN.md`.
-3. **`docs/EVALUATION.md`** — map all 27 rubric sub-criteria to concrete checks. Some
-   are assertable tests, some need a visual pass, and answer quality needs a golden set.
-4. **Smoke-test the stack** — `make install`, `make dev`, `make up`, and confirm the
-   inherited template runs clean on the new ports before building on it.
-5. **Verify the visual review loop works** — driving the running app in a browser and
-   reviewing screenshots is load-bearing for the 55 UI/UX points, so it needs proving
-   early, not at the end.
+Ordered so that each step is testable on its own, and so the two riskiest assumptions get
+tested before anything is built on them.
+
+1. **Smoke-test the inherited stack** — `make install`, `make dev`, `make up`. Confirm the
+   template runs clean on the new ports before building on it.
+2. **The manifest, one symbol class.** Parse every fenced ```json block in the corpus,
+   flatten to dotted key paths, emit `data/manifest.json`, and diff it against the
+   canonical `liara.json` reference page. One afternoon, no LLM, no frontend. It yields
+   the highest-fabrication-risk symbol class, the shared harness every later extractor
+   reuses, and a self-proving finding: the reference page omits `go.mainFile`,
+   `django.settingsFile`, `image`, `python.args`, and leaves `go` out of the platform enum.
+3. **The validator and its fixtures.** `liara.schema.json`, `rules.yaml`, `plans.yaml` and
+   a pure `validate(bundle) -> list[Finding]`, with ~15 fixture pairs whose broken half is
+   copied verbatim from Liara's own documentation. Testable with no model, no frontend and
+   no Liara account. If it cannot go green in a day, the idea is wrong cheaply.
+4. **Break our own deploys.** Deliberately fail ~12 deploys on the credited Liara account,
+   one per error cluster, and capture the verbatim logs. This is the only source of Liara's
+   actual log framing, and the captures triple as matcher fixtures, regression tests and
+   demo script. No competitor working from documentation alone can do this.
+5. **Ingestion and retrieval**, per `DESIGN.md` §5–6. Snapshot and version the crawl.
+6. **The golden set, before trusting any retrieval number.** ~150 queries, 15–20%
+   unanswerable, fact-list rubric, corpus version recorded with every score.
+7. **`docs/EVALUATION.md`** — all 27 rubric sub-criteria mapped to concrete checks with a
+   verdict and evidence each.
+8. **Prove the visual review loop early.** Driving the running app in a browser and
+   reviewing screenshots is load-bearing for the 55 UI/UX points and for the promise that
+   we self-evaluate rather than relying on a human to find breakage. Prove it on the
+   inherited example page, before there is anything real to review.
 
 ## Blocked
 
 Nothing.
 
 ## Notes worth keeping
+
+- Two independent design passes converged on the same entry point from opposite
+  directions: validate the config the user already has. Every user has a config; only a
+  failing user has a log — and catching a real bug in something a judge brought is more
+  convincing than generating something they cannot verify.
+- The MCP-server / agent-skills lane was investigated and **rejected as a differentiator**:
+  a dozen vendors ship it and it is now table stakes. Offer it so its absence does not look
+  dated; expect no points for it.
+- The docs give us the *fix* half of every error signature and almost never the *symptom*
+  half — `worker-timeout.md` names `GUNICORN_TIMEOUT` with zero sample log text. Symptom
+  anchors have to come from the upstream tools' own canonical output (`[CRITICAL] WORKER
+  TIMEOUT`, `413 Request Entity Too Large`, `419 | PAGE EXPIRED`) and from logs we capture
+  ourselves.
 
 - Liara publishes an LLM-ready documentation mirror: `docs.liara.ir/llms.txt` indexes
   it, `all-links-llms.txt` lists every page, and `docs.liara.ir/llms/**/*.md` serves
