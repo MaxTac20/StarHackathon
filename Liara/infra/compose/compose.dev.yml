@@ -1,0 +1,65 @@
+name: liara-dev
+
+services:
+  frontend:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+      target: frontend-dev
+    command: ["sh", "-c", "pnpm install --frozen-lockfile && pnpm dev"]
+    environment:
+      BACKEND_PROXY_URL: http://backend:8000
+    ports:
+      - "5174:5173"
+    volumes:
+      - ../../frontend:/app/frontend
+      - frontend_node_modules:/app/frontend/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+      target: backend-dev
+    command: ["sh", "-c", "uv sync --frozen --all-groups && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
+    env_file:
+      - ../../.env
+    environment:
+      APP_ENV: development
+      DEBUG: "true"
+      DATABASE_URL: ""
+      POSTGRES_HOST: postgres
+    ports:
+      - "8002:8000"
+    volumes:
+      - ../../backend:/app/backend
+      - backend_venv:/app/backend/.venv
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:18.4-alpine3.23
+    env_file:
+      - ../../.env
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  frontend_node_modules:
+  backend_venv:
+  postgres_dev_data:
