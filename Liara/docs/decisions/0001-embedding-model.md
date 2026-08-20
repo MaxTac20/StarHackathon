@@ -35,16 +35,46 @@ price, and 4× the context of the runner-up at that price.
 **Cost is not a factor either way** — the whole 1.7M-token corpus embeds for under two
 cents at $0.01/M. Optimize purely for quality.
 
+## Request it at 1024 dimensions, not native
+
+Qwen3-Embedding-8B returns **4096 dimensions natively, which is unusable for us**:
+pgvector's HNSW and IVFFlat cap at 2,000 dimensions on `vector`, `halfvec` caps at 4,000,
+and `SET STORAGE PLAIN` needs the value to fit an 8 KB page (4096 × 4 bytes does not).
+At native width the column is unindexable *and* cannot use the storage optimisation.
+
+The model supports Matryoshka truncation and OpenRouter passes `dimensions` through —
+verified live at 2000, 1536 and 1024. **Request `dimensions: 1024`.**
+
+Measured on a real Persian probe (query about the upload limit, against a relevant and an
+irrelevant passage):
+
+| Width | cos(q, relevant) | cos(q, irrelevant) | margin |
+|---|---:|---:|---:|
+| 4096 (native) | 0.6725 | 0.4721 | +0.2003 |
+| **1024 (truncated)** | 0.6841 | 0.4777 | **+0.2064** |
+
+Discrimination is preserved, the column indexes normally, `SET STORAGE PLAIN` applies,
+and storage drops fourfold. (The probe is n=1 — treat the tiny margin gain as noise, not
+as evidence truncation improves quality.)
+
 ## Revision — why this record changed
 
 The first version chose **BAAI/bge-m3**, and its central argument was that BGE-M3 emits
 **learned sparse weights alongside the dense vector at no extra cost**, supplying the
 lexical leg of hybrid retrieval for free and outscoring BM25 on Persian 45.1 to 28.7.
 
-**That advantage is unavailable to us.** OpenRouter's `/embeddings` endpoint returns a
-flat dense float array; `encoding_format` accepts only `float` or `base64`. There is no
-sparse output. Obtaining BGE-M3's sparse head would require self-hosting the model, which
-is out of scope — we host the application and nothing else.
+**That advantage is unavailable to us**, and this was verified live rather than inferred
+from the schema. Calling OpenRouter's `/embeddings` with `baai/bge-m3` returns
+`{embedding, index, object}` and nothing else — 1024 dense floats. `encoding_format:
+"sparse"` is rejected outright (only `float` and `base64` are accepted), and passing
+`return_sparse` / `return_colbert_vecs` is silently ignored, yielding the identical
+dense-only response.
+
+Note carefully what this does and does not mean: **BGE-M3 is served on OpenRouter.** Only
+its dense head is reachable. So the loss is caused by being API-only, not by preferring
+Qwen3 — selecting BGE-M3 instead would not recover the sparse weights. Obtaining them
+requires self-hosting the model, which is out of scope; we host the application and
+nothing else.
 
 With the sparse head gone, BGE-M3 is simply a lower-scoring, shorter-context model at the
 same price as Qwen3, so the decision inverts.
