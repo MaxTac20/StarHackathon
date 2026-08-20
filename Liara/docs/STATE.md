@@ -69,12 +69,31 @@ record why.
       competitive landscape; Persian/bilingual retrieval with measured benchmarks
 - [x] Divergent ideation across five isolated frames, scored and converged
 - [x] `docs/DESIGN.md` and the first four decision records
+- [x] Ingestion source re-decided against measurement of all 1,142 pages — `decisions/0002`
+- [x] `docs/CONTRACTS.md` — the interfaces that let build streams run in parallel
+- [x] Shared Persian normalizer (`app.utils.persian`) with behavioural tests
+- [x] **Local toolchain verified end to end**: `make install` green, `make check` green
+      (mypy 23 files, tsc, 3 tests, production build), `make up` green with a healthy
+      container serving `/api/health` and the SPA on 8002
+- [x] Corpus cloned, pinned and measured — see *Corpus snapshot*
 
 ## In progress
 
-PR #1 (`docs/liara-design`) is **merged** — rebased onto `main`, branch deleted. A second
-branch, `docs/ingestion-source-revision`, carries the rewritten
-[`decisions/0002`](decisions/0002-ingestion-source.md).
+Three build streams run in parallel as Codex handoffs, each in its own git worktree on its
+own branch, all cut from `main` at `b130cf2`. They share `docs/CONTRACTS.md` and nothing
+else, and none of them may touch another's directory.
+
+| Branch | Worktree | Scope |
+|---|---|---|
+| `codex/liara-ingest` | `../StarHackathon-codex-liara-ingest` | Corpus → `corpus.jsonl`, plus the manifest-key inventory |
+| `codex/liara-retrieval` | `../StarHackathon-codex-liara-retrieval` | pgvector storage, embeddings, hybrid search. Its own Postgres on **5444** |
+| `codex/liara-chat` | `../StarHackathon-codex-liara-chat` | `POST /api/chat` streaming + the chat UI, against a stub answerer. API **8012**, Vite **5184** |
+
+Ports are deliberately off the defaults so the streams cannot collide with each other or
+with `make up` in the main checkout. Each worktree has its own `.env` carrying
+`OPENROUTER_API_KEY` and `INGEST_CORPUS_DIR`; those files are gitignored and must stay so.
+
+Session ids are recoverable with `grep -m1 "session id:" <scratchpad>/codex-liara-<slug>.log`.
 
 ## Corpus snapshot
 
@@ -185,3 +204,19 @@ Nothing.
   link 16 ways and make every one of them time out. Never retry a failed install blindly —
   the pnpm store is content-addressed and keeps what already landed, so a retry after
   fixing the config resumes rather than restarts.
+- **`liara.json` manifest, what is known so far.** 49 distinct key paths appear across the
+  corpus's own examples (`app`, `port`, `image`, `disks.*`, `platform`, plus per-platform
+  blocks for `node`, `django`, `go`, `laravel`, `next`, `angular`, `python`). The real
+  reference page is `paas/liarajson.md` at 749 lines; `references/cli/create-liara-json.md`
+  is 24 lines and documents no keys at all. A rigorous documented-versus-observed diff was
+  **not** completed — the quick parser used was inadequate against that page's format, and
+  building the inventory properly is part of the ingestion handoff. Do not quote a
+  "documented keys" number until that lands.
+- `make check` runs `build` last, so a stale `frontend/dist` from a previous run used to
+  fail lint on every run after the first. Fixed by excluding build artifacts in
+  `biome.json`. **The same latent bug is still in `template/`** and therefore in any copy
+  made from it, including ZarinPal — worth mentioning to whoever owns those, but not ours
+  to change.
+- The production container answers `/api/health` but `openapi.json` reports zero paths in
+  the production image. Harmless for serving; only matters if `make api-client` is ever run
+  against the production stack rather than dev. Not investigated.
