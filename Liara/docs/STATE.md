@@ -94,7 +94,7 @@ record why.
 - [x] `codex/liara-chat` conversational surface — database-free AI SDK v5 stub stream,
       replaceable answerer seam, Persian-first bilingual UI, citations, reasoning and
       source disclosure, resilient streaming markdown, code copy, and mixed-direction
-      isolation. `make check` passes with 21 backend tests (1 skipped) and 28 frontend
+      isolation. `make check` passes with 21 backend tests (1 skipped) and 30 frontend
       tests. Browser gates
       passed on local-only API `8012` and Vite `5184`: first status motion stayed below
       500 ms, all phases advanced, sources preceded answer text, incomplete links and
