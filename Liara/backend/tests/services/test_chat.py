@@ -9,7 +9,9 @@ from app.schemas.retrieval import RetrievedChunk
 from app.services.chat import (
     CitationIntegrityError,
     GroundedChatAnswerer,
+    answer_retrieval_queries,
     contextual_retrieval_query,
+    interleave_retrieval_results,
 )
 from app.services.embeddings import ChatStreamEvent, ChatUsage, EmbeddingBatch
 from app.services.retrieval import RetrievalRun
@@ -209,6 +211,40 @@ def test_follow_up_query_restates_the_prior_subject_for_retrieval() -> None:
     assert "Node.js" not in query
     assert "جنگو" in query
     assert "و برای جنگو؟" in query
+
+
+def test_multi_intent_query_plans_bounded_existing_retrieval_calls() -> None:
+    queries = answer_retrieval_queries(
+        "فایل‌های آپلودی پاک می‌شوند؛ محدودیت Nginx را بالا ببرم و ماندگارشان کنم؟"
+    )
+
+    assert len(queries) == 3
+    assert "ساخت دیسک" in queries[1]
+    assert "client_max_body_size" in queries[2]
+
+
+def test_multi_query_results_are_interleaved_instead_of_losing_an_intent() -> None:
+    upload = retrieval_run(
+        [
+            retrieved_chunk(chunk_id="upload:0"),
+            retrieved_chunk(chunk_id="upload:1"),
+        ]
+    )
+    persistence = retrieval_run(
+        [
+            retrieved_chunk(chunk_id="disk:0"),
+            retrieved_chunk(chunk_id="disk:1"),
+        ]
+    )
+
+    merged = interleave_retrieval_results([upload, persistence], top_k=4)
+
+    assert [result.id for result in merged] == [
+        "upload:0",
+        "disk:0",
+        "upload:1",
+        "disk:1",
+    ]
 
 
 async def test_verified_defective_page_is_marked_and_disclosed() -> None:
