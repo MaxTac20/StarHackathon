@@ -51,8 +51,8 @@ record why.
 | Git workflow | Branch → PR → merge. No direct pushes to `main` |
 | Remote | `origin` = MaxTac20/StarHackathon; `upstream` = pooya79/StarHackathon |
 | Product shape | Four surfaces over one engine: Ask (cited chat), Diagnose (paste a log), Check (validate an existing config), Generate (artifacts from a described stack). See [`DESIGN.md`](DESIGN.md) |
-| Embeddings | BGE-M3 via OpenRouter — [`decisions/0001`](decisions/0001-embedding-model.md) |
-| Ingestion | Crawl rendered HTML — [`decisions/0002`](decisions/0002-ingestion-source.md) |
+| Embeddings | Qwen3-Embedding-8B via OpenRouter, requested at 1024 dimensions — [`decisions/0001`](decisions/0001-embedding-model.md) |
+| Ingestion | One pinned sparse git clone: mirror text + MDX anchors + asciinema casts. No crawler — [`decisions/0002`](decisions/0002-ingestion-source.md) |
 | Config generation | LLM emits a typed spec; deterministic code writes every file — [`decisions/0003`](decisions/0003-llm-never-writes-config.md) |
 | Defective docs | Named below the answer with evidence — [`decisions/0004`](decisions/0004-defective-page-disclosure.md) |
 | Not building | Anything needing population-scale traffic, a mock Liara dashboard, voice, gamification. Full list in `DESIGN.md` §14 |
@@ -72,22 +72,33 @@ record why.
 
 ## In progress
 
-PR #1 (`docs/liara-design`) — scaffolding, design and the four decision records. Feature
-branches should wait for it to merge rather than stacking on an unreviewed base.
+PR #1 (`docs/liara-design`) is **merged** — rebased onto `main`, branch deleted. A second
+branch, `docs/ingestion-source-revision`, carries the rewritten
+[`decisions/0002`](decisions/0002-ingestion-source.md).
+
+## Corpus snapshot
+
+`liara-cloud/docs` at commit **`31f2ef7`** (2026-08-15), fetched as a blobless sparse
+clone over `src/pages public/llms public/casts indexer` — 24 MB, seconds. The default
+branch is **`master`**, not `main`. Contents: 1,142 MDX pages, 1,142 mirror pages, 90
+asciinema casts, and Liara's own Meilisearch indexer under `indexer/`.
+
+A full `git clone` of this repo exceeds two minutes on this connection; always use the
+sparse form.
 
 ## Open decisions, blocking checkpoint 1
 
-Both reverse an earlier choice, and the deadline is the deciding factor in each. Neither
-is settled.
-
-1. **Ingestion source.** Reverse [`decisions/0002`](decisions/0002-ingestion-source.md)
-   and read the `llms/*.md` mirror rather than crawling rendered HTML? Crawling is the
-   most brittle step in the pipeline on a two-day budget. Cost is the ~27 pages with
-   code-block dropout, plus page-level citations unless heading-slug anchors resolve —
-   a ten-minute check to run first. **Recommended: yes, the mirror.**
-2. **Personalization depth.** Session-scoped profile chips instead of user accounts? Drops
-   auth, user storage, and a privacy surface that criterion 4 would then be judged on,
-   and buys close to a day. **Recommended: yes, session-scoped.**
+1. **Personalization depth.** Session-scoped profile chips instead of user accounts?
+   Drops auth, user storage, and a privacy surface that criterion 4 would then be judged
+   on. The rubric's personalization language is *«شخصی‌سازی پاسخ‌ها»*, *«حفظ Context
+   مکالمه»* and *«تجربه مناسب در ادامه Conversation»* — the scored object is the answer
+   changing shape, never identity persisting across sessions or devices. The load-bearing
+   cost is not the login form but SSE: `EventSource` cannot set an `Authorization`
+   header, so auth means cookie semantics that differ between `localhost:5174` and the
+   deployed origin — and that failure would surface on the environment we cannot reach
+   until credits land. **Recommended: yes, session-scoped**, with a shareable session
+   link (≈1 hour) as the demo beat instead. The profile is a typed object either way, so
+   accounts stay an additive upgrade at checkpoint 5.
 
 ## Next
 
@@ -160,3 +171,17 @@ Nothing.
 - The dev Compose stack installs dependencies inside the container with no package-cache
   mount. Named volumes are scoped per Compose project, so each challenge downloads its
   dependencies once. Worth a host cache mount if that download becomes painful.
+- **This connection runs at 25–50 KiB/s to npm.** pnpm's default `fetch-timeout` is 60 s,
+  so any tarball over roughly 3 MB (`lucide-react` is 2.75 MB) cannot finish and is
+  discarded, then re-downloaded. `make install` fails on this, twice, with
+  `TimeoutError: The operation was aborted due to timeout`. The fix is pnpm's own config,
+  not environment variables — `npm_config_*` is ignored by pnpm 11:
+
+      pnpm config set fetch-timeout 1800000 --location=user
+      pnpm config set network-concurrency 2 --location=user
+      pnpm config set fetch-retries 8 --location=user
+
+  Lowering concurrency matters as much as the timeout: 16 parallel fetches split a slow
+  link 16 ways and make every one of them time out. Never retry a failed install blindly —
+  the pnpm store is content-addressed and keeps what already landed, so a retry after
+  fixing the config resumes rather than restarts.
