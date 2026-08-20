@@ -2,11 +2,11 @@ import { createHighlighterCore, type HighlighterCore } from "@shikijs/core";
 import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
 import githubDark from "@shikijs/themes/github-dark";
 import githubLight from "@shikijs/themes/github-light";
-import type {
-  CodeHighlighterPlugin,
-  HighlightOptions,
-  HighlightResult,
-} from "streamdown";
+import type { CodeHighlighterPlugin, HighlightOptions } from "streamdown";
+
+type HighlightResult = NonNullable<
+  ReturnType<CodeHighlighterPlugin["highlight"]>
+>;
 
 const themes = ["github-light", "github-dark"] as const;
 

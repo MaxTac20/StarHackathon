@@ -94,11 +94,20 @@ record why.
 - [x] `codex/liara-chat` conversational surface — database-free AI SDK v5 stub stream,
       replaceable answerer seam, Persian-first bilingual UI, citations, reasoning and
       source disclosure, resilient streaming markdown, code copy, and mixed-direction
-      isolation. `make check` passes with 12 backend and 4 frontend tests. Browser gates
+      isolation. `make check` passes with 21 backend tests (1 skipped) and 28 frontend
+      tests. Browser gates
       passed on local-only API `8012` and Vite `5184`: first status motion stayed below
       500 ms, all phases advanced, sources preceded answer text, incomplete links and
       fences remained visually valid, and 390x844 plus 1440x900 kept the composer visible
       without page-width overflow.
+- [x] Chat bundle follow-up — replaced `@streamdown/code`'s all-language Shiki registry
+      with ten explicit Liara-documentation languages and alias handling; unsupported and
+      invalid-JSON fences stay plain text. The production artifact fell from 12 MB / 308
+      JS chunks to 2.5 MB / 17 JS chunks. The initial HTML graph remains essentially flat
+      at 404.19 KiB gzip (`-9`) because the highlighter was already lazy; it is dominated
+      by the application/runtime entry and Streamdown's markdown/HTML parsing stack, not
+      language grammars. The 390x844 browser pass confirmed visible syntax colors, a
+      visible composer, and no page-width overflow in either direction.
 
 ## In progress
 
@@ -118,8 +127,8 @@ with `make up` in the main checkout. Each worktree has its own `.env` carrying
 
 Session ids are recoverable with `grep -m1 "session id:" <scratchpad>/codex-liara-<slug>.log`.
 
-No work remains on the `codex/liara-chat` lane; it is committed as `6d68ab9` and is ready
-for review. It deliberately remains unmerged and unre-based.
+No work remains on the `codex/liara-chat` lane; it is committed on its branch and ready
+for review. It deliberately remains unmerged.
 
 ## Corpus snapshot
 
