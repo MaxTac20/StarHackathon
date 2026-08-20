@@ -234,3 +234,18 @@ Nothing.
 - The production container answers `/api/health` but `openapi.json` reports zero paths in
   the production image. Harmless for serving; only matters if `make api-client` is ever run
   against the production stack rather than dev. Not investigated.
+- **Lexical retrieval measured against the full 5,250-chunk corpus**, not the fixture.
+  Persian is strong: all three probe questions returned exactly the right pages
+  (`set-envs`, `worker-timeout`, `disks/*`). Two weaknesses are real and remain open:
+  - The leg ORs every surviving term, so high-document-frequency *content* words
+    dominate. `liara` appears on nearly every page, so `liara env:set` returns
+    object-storage pages, and `413 Request Entity Too Large` misses the nginx upload page
+    because `Request` matches everywhere.
+  - `disks.mountTo` returns **zero** hits — a documented manifest key, tokenized as one
+    lexeme that never matches the JSON fence spelling.
+
+  The likely fix is AND-or-phrase semantics first with an OR fallback when the result set
+  is too small, which is a retrieval-quality decision that should be **measured against a
+  golden set rather than guessed at**. Folded into the answer-engine work, which owns
+  answer quality end to end. Note this affects the lexical leg only; the dense leg carries
+  natural-language questions, so the practical cost is lost help rather than active harm.

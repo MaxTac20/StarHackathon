@@ -18,7 +18,12 @@ DEFAULT_DENSE_WEIGHT = 0.7
 DEFAULT_LEXICAL_WEIGHT = 0.3
 
 # ``simple`` deliberately has no stopword dictionary, so remove only a small,
-# explicit set of Persian function words from queries. The index stays lossless.
+# explicit set of function words from queries. The index stays lossless.
+#
+# The corpus and the product are both bilingual, so an English-only question has
+# to be filtered too: "how do I deploy a Django app" otherwise searches for
+# ``how OR do OR I OR a``, which on the real corpus buries the Django pages under
+# unrelated AI cookbook pages.
 _PERSIAN_FUNCTION_WORDS = frozenset(
     {
         "از",
@@ -58,6 +63,75 @@ _PERSIAN_FUNCTION_WORDS = frozenset(
         "هستند",
     }
 )
+# Deliberately excludes anything that names a Liara platform or service, because
+# several are ordinary English words. ``go`` and ``next`` in particular must stay
+# searchable, so they are absent here even though stopword lists often carry them.
+_ENGLISH_FUNCTION_WORDS = frozenset(
+    {
+        "a",
+        "am",
+        "an",
+        "and",
+        "any",
+        "are",
+        "as",
+        "at",
+        "be",
+        "been",
+        "but",
+        "by",
+        "can",
+        "did",
+        "do",
+        "does",
+        "for",
+        "from",
+        "get",
+        "had",
+        "has",
+        "have",
+        "how",
+        "i",
+        "if",
+        "in",
+        "into",
+        "is",
+        "it",
+        "its",
+        "me",
+        "my",
+        "of",
+        "on",
+        "or",
+        "should",
+        "so",
+        "that",
+        "the",
+        "their",
+        "them",
+        "then",
+        "there",
+        "these",
+        "they",
+        "this",
+        "to",
+        "was",
+        "we",
+        "were",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "why",
+        "will",
+        "with",
+        "would",
+        "you",
+        "your",
+    }
+)
+_FUNCTION_WORDS = _PERSIAN_FUNCTION_WORDS | _ENGLISH_FUNCTION_WORDS
 _QUERY_EDGE_PUNCTUATION = "!\"'(),.:;<>?[\\]{}،؛؟«»…"
 
 
@@ -178,7 +252,7 @@ def _or_query_terms(variant: str) -> str:
     content_terms: list[str] = []
     for term in variant.split():
         comparison_term = term.strip(_QUERY_EDGE_PUNCTUATION)
-        if comparison_term and comparison_term not in _PERSIAN_FUNCTION_WORDS:
+        if comparison_term and comparison_term.lower() not in _FUNCTION_WORDS:
             content_terms.append(term)
     return " OR ".join(content_terms)
 
