@@ -13,9 +13,23 @@ passed the verification gate in `../AGENTS.md`.
 
 ## Where we are
 
-Scaffolding and design are done. No application code has been written yet. The next
-working session is the first build step: the grounding manifest and the validator, both
-of which are testable offline with no LLM, no frontend, and no Liara account.
+Scaffolding and design are done and under review in PR #1. No application code exists yet.
+
+**Working locally.** Liara credits have not been released, so checkpoint 0 — deploying a
+hello-world to de-risk the 40 deployment points on day one — cannot run yet. This is the
+exact risk `DESIGN.md` §12 ordered the sequence to avoid, so it is now deferred rather
+than mitigated. Partial mitigation: build and run the production image locally with
+`make up`, so when credits arrive the only unknown left is Liara's platform behaviour and
+not our container. **Install `@liara/cli` and deploy the moment credits land**, regardless
+of what else is in flight.
+
+**Toolchain verified 2026-08-20:** uv 0.9.9 with CPython 3.14 already fetched, Node
+24.11.1, pnpm 11.22.0, Docker 28.5.1 + Compose v2.40.3 running without sudo. `psql` is
+absent locally, which is fine — Compose provides PostgreSQL. `liara` CLI not yet
+installed.
+
+**Secrets:** the OpenRouter key lives in the session scratchpad as `or.key`, never in the
+repository. It was pasted into a chat transcript, so rotate it after the hackathon.
 
 ## Settled
 
@@ -58,7 +72,22 @@ record why.
 
 ## In progress
 
-Nothing.
+PR #1 (`docs/liara-design`) — scaffolding, design and the four decision records. Feature
+branches should wait for it to merge rather than stacking on an unreviewed base.
+
+## Open decisions, blocking checkpoint 1
+
+Both reverse an earlier choice, and the deadline is the deciding factor in each. Neither
+is settled.
+
+1. **Ingestion source.** Reverse [`decisions/0002`](decisions/0002-ingestion-source.md)
+   and read the `llms/*.md` mirror rather than crawling rendered HTML? Crawling is the
+   most brittle step in the pipeline on a two-day budget. Cost is the ~27 pages with
+   code-block dropout, plus page-level citations unless heading-slug anchors resolve —
+   a ten-minute check to run first. **Recommended: yes, the mirror.**
+2. **Personalization depth.** Session-scoped profile chips instead of user accounts? Drops
+   auth, user storage, and a privacy surface that criterion 4 would then be judged on,
+   and buys close to a day. **Recommended: yes, session-scoped.**
 
 ## Next
 
