@@ -278,6 +278,10 @@ set we are building anyway. Do not tune `k`; its effect is ~1% against a ~6% gap
 extrapolation and must be measured, not trusted. Avoid Jina rerankers: CC-BY-NC-4.0,
 not commercially usable.
 
+**Request embeddings at `dimensions: 1024`.** Qwen3 returns 4096 natively, which exceeds
+pgvector's 2,000-dim index cap and the 8 KB page limit for `SET STORAGE PLAIN`. Matryoshka
+truncation to 1024 preserves discrimination (verified on a Persian probe) and restores both.
+
 **Store:** pgvector, HNSW m=16 / ef_construction=64 (1.2 ms at 99.9% recall, 4.8 s build),
 and `ALTER COLUMN embedding SET STORAGE PLAIN` — which halves exact-scan latency *and*
 shrinks total storage.
