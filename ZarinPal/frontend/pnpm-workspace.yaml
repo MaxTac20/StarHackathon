@@ -1,0 +1,5 @@
+packages:
+  - "."
+
+# This starter intentionally resolves current stable releases when updating.
+minimumReleaseAge: 0

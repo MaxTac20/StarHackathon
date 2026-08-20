@@ -1,0 +1,153 @@
+# AGENTS.md
+
+## Project overview
+
+This is the ZarinPal hackathon submission: a merchant-specific payment analytics
+dashboard that turns raw gateway transaction attempts into actionable, explainable
+performance insights.
+
+```text
+React/Vite -> FastAPI -> PostgreSQL
+```
+
+Development runs Vite and FastAPI separately for hot reload; Vite proxies relative `/api` calls. Production compiles React and copies it into one Node-free FastAPI application image. FastAPI serves API routes, assets, and the React Router SPA fallback. PostgreSQL remains a separate service.
+
+## Challenge priorities for every agent
+
+The judging criteria are product requirements, not end-of-project presentation notes.
+Optimize work in this order: **actionability and originality (90 points), accuracy and
+traceability (75), analytical depth (60), non-technical UX (45), and technical quality
+and executability (30)**.
+
+Do not mistake a collection of charts for the requested product. A primary insight must
+connect a quantified finding to a feasible merchant action, explain its evidence and
+limitations, and let the user drill down to the contributing sessions or payment
+attempts. Analysis must respect attempt-level grain, merchant-volume concentration, and
+null coverage. Prefer a few defensible end-to-end insight journeys over many descriptive
+visualizations.
+
+Before planning or implementing analytics, read
+[the challenge success criteria](docs/challenge-criteria.md). Use its feature review
+checklist during implementation and review.
+
+## Product constraints
+
+- Persian is the primary product language and layout direction is RTL. English is a
+  complete secondary locale, not a partial translation. Keep identifiers, codes, and
+  other inherently Latin data readable in LTR spans.
+- Every user-facing screen must work in both light and dark themes. Use semantic design
+  tokens rather than component-local raw colors.
+- Analytics are always scoped to the authenticated merchant. Never expose or aggregate
+  another merchant's row into merchant-visible results.
+- Metrics must be explainable and traceable. A metric needs a stable definition,
+  numerator and denominator where applicable, active time basis and filters, data
+  freshness, and a path to the contributing transactions.
+- Do not guess payment-domain semantics that the source data does not establish. Record
+  open questions (especially currency units, timestamp timezone, and status meaning) and
+  confirm them before presenting inferred definitions as facts.
+- Treat `data/` as local source data. Do not commit the supplied CSV, derived datasets,
+  merchant-identifying exports, or raw payment records.
+
+Read [the challenge success criteria](docs/challenge-criteria.md),
+[the product brief](docs/product-brief.md), [metric contracts](docs/metrics.md),
+[the data dictionary](docs/data-dictionary.md), and [the design system](DESIGN.md)
+before implementing analytics or user-facing UI.
+
+## Repository map
+
+- `backend/`: Python package, FastAPI app, Alembic migrations, pytest tests
+- `frontend/`: React app, MUI/MUI X design system, Vitest and Playwright tests
+- `infra/docker/`: multi-stage application Dockerfile
+- `infra/compose/`: production and development Compose files
+- `docs/`: focused architecture, workflow, and deployment notes
+- `Makefile`: canonical developer interface
+- `.env.example`: documented configuration contract; never commit `.env`
+
+## Backend architecture
+
+Within `backend/src/app/`:
+
+- `api/routes/`: HTTP parsing, dependencies, status codes, and response schemas
+- `schemas/`: Pydantic request/response contracts
+- `models/`: SQLAlchemy persistence models
+- `services/`: business logic and use-case orchestration
+- `db/`: engine, request-scoped sessions, declarative base
+- `core/`: settings, logging, and security helpers
+
+Keep routes thin: routes call services; services contain business decisions. Schemas define API contracts; do not expose database models as contracts by default. Read settings through `core/config.py`. Use request-scoped dependency-injected sessions—never add a global `Session`. The engine/session factory may be process-global. API routes live under `/api`.
+
+Dependency direction should generally be `routes -> services -> models/db`, with schemas used at boundaries. Avoid imports from routes into services or models. Add abstractions only after a concrete repeated need exists.
+
+## Frontend architecture
+
+Within `frontend/src/`:
+
+- `app/`: application initialization, router, and providers
+- `features/`: feature-specific API functions, query hooks, schemas, and UI
+- `components/ui/`: legacy or approved fallback primitives; do not duplicate MUI
+- `components/common/`: reusable application components
+- `api/`: generic fetch infrastructure and generated OpenAPI types
+- `pages/`: route-level composition
+- `layouts/`: route layouts
+- `lib/`: framework-independent helpers
+
+Keep feature-specific code under its feature. Put genuinely reusable UI in `components`; leave shadcn primitives in `components/ui`. Use TanStack Query for server state—do not hand-roll server-state caches with `useEffect`. Forms use React Hook Form, Zod, and the existing resolver. API calls go through the API layer and always use relative `/api/...` paths; never hardcode a backend origin. Do not edit `api/generated/schema.ts` manually.
+
+Use MUI and MUI X as the authoritative UI foundation and compose their primitives before
+adding custom components. shadcn is fallback-only under the policy in `DESIGN.md`.
+Internationalized copy belongs in locale resources rather than JSX.
+Test both `dir="rtl"` and `dir="ltr"`; do not fake RTL by reversing individual flex rows.
+
+## Commands
+
+- `make install`: frozen/locked dependency install
+- `make dev`: local Uvicorn and Vite hot reload
+- `make dev-docker`: containerized hot reload stack
+- `make build`: frontend and production image build
+- `make up`, `make down`, `make logs`: production-style Compose lifecycle
+- `make lint`, `make format`, `make format-check`, `make typecheck`
+- `make test`, `make test-backend`, `make test-frontend`, `make e2e`
+- `make check`: all commit-gate checks plus frontend build
+- `make db-upgrade`, `make db-downgrade`, `make db-revision MESSAGE="..."`
+- `make api-client`: regenerate TypeScript types from FastAPI OpenAPI
+
+## Adding a backend endpoint
+
+1. Define request/response Pydantic models in `schemas/`.
+2. Put business/database logic in `services/`.
+3. Add a thin route module under `api/routes/` and use injected dependencies from `api/deps.py`.
+4. Register its router in `api/router.py`; `/api` is added centrally.
+5. Add API and service tests. Run `make api-client` if the public contract changed.
+
+Use consistent HTTP status codes and the existing JSON error shape. Do not call `metadata.create_all()`.
+
+## Adding a frontend feature
+
+1. Create `features/<name>/` only with the subfolders needed now.
+2. Add typed API functions using the generic API client and generated types.
+3. Wrap server state in focused TanStack Query hooks.
+4. Build feature components; keep route composition in `pages/`.
+5. Register the route in `app/router.tsx` and add representative tests.
+
+## Database migrations
+
+Import new model modules in `app/db/base.py` so Alembic sees their metadata. With PostgreSQL running:
+
+```text
+make db-revision MESSAGE="describe the change"
+```
+
+Review the generated migration, especially defaults, constraints, data changes, and downgrade safety. Apply with `make db-upgrade`; revert one revision with `make db-downgrade`. Production runs `alembic upgrade head` as a one-shot migration service before the app starts.
+
+## Code quality and constraints
+
+Run `make check` before considering work complete. Update tests when behavior changes and documentation when architecture or workflow changes.
+
+- Do not introduce a new framework when an existing dependency solves the problem.
+- Do not add repository, CQRS, DDD, event-bus, or other abstractions speculatively.
+- Do not bypass existing API/client patterns or duplicate existing utilities.
+- Do not mix business logic into React components or FastAPI handlers.
+- Keep changes focused; do not reformat unrelated files.
+- Keep secrets out of source, logs, and all `VITE_*` variables.
+- Use Alembic for every schema change.
+- Preserve the single application-container production model and same-origin `/api` design.
