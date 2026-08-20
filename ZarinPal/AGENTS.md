@@ -2,13 +2,37 @@
 
 ## Project overview
 
-This is a deliberately simple full-stack starter:
+This is the ZarinPal hackathon submission: a merchant-specific payment analytics
+dashboard that turns raw gateway transaction attempts into actionable, explainable
+performance insights.
 
 ```text
 React/Vite -> FastAPI -> PostgreSQL
 ```
 
 Development runs Vite and FastAPI separately for hot reload; Vite proxies relative `/api` calls. Production compiles React and copies it into one Node-free FastAPI application image. FastAPI serves API routes, assets, and the React Router SPA fallback. PostgreSQL remains a separate service.
+
+## Product constraints
+
+- Persian is the primary product language and layout direction is RTL. English is a
+  complete secondary locale, not a partial translation. Keep identifiers, codes, and
+  other inherently Latin data readable in LTR spans.
+- Every user-facing screen must work in both light and dark themes. Use semantic design
+  tokens rather than component-local raw colors.
+- Analytics are always scoped to the authenticated merchant. Never expose or aggregate
+  another merchant's row into merchant-visible results.
+- Metrics must be explainable and traceable. A metric needs a stable definition,
+  numerator and denominator where applicable, active time basis and filters, data
+  freshness, and a path to the contributing transactions.
+- Do not guess payment-domain semantics that the source data does not establish. Record
+  open questions (especially currency units, timestamp timezone, and status meaning) and
+  confirm them before presenting inferred definitions as facts.
+- Treat `data/` as local source data. Do not commit the supplied CSV, derived datasets,
+  merchant-identifying exports, or raw payment records.
+
+Read [the product brief](docs/product-brief.md), [metric contracts](docs/metrics.md),
+[the data dictionary](docs/data-dictionary.md), and [the design system](DESIGN.md) before
+implementing analytics or user-facing UI.
 
 ## Repository map
 
@@ -49,6 +73,10 @@ Within `frontend/src/`:
 - `lib/`: framework-independent helpers
 
 Keep feature-specific code under its feature. Put genuinely reusable UI in `components`; leave shadcn primitives in `components/ui`. Use TanStack Query for server state—do not hand-roll server-state caches with `useEffect`. Forms use React Hook Form, Zod, and the existing resolver. API calls go through the API layer and always use relative `/api/...` paths; never hardcode a backend origin. Do not edit `api/generated/schema.ts` manually.
+
+Use the existing shadcn/ui New York foundation and compose its primitives before adding
+custom components. Internationalized copy belongs in locale resources rather than JSX.
+Test both `dir="rtl"` and `dir="ltr"`; do not fake RTL by reversing individual flex rows.
 
 ## Commands
 

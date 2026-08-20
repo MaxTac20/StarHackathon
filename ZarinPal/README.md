@@ -114,4 +114,7 @@ AGENTS.md              Rules and workflows for coding agents
 Makefile              Stable developer commands
 ```
 
-See [architecture](docs/architecture.md), [development](docs/development.md), and [deployment](docs/deployment.md) for focused details.
+Start with the [product brief](docs/product-brief.md), [design system](DESIGN.md),
+[metric contracts](docs/metrics.md), and [data dictionary](docs/data-dictionary.md).
+See [architecture](docs/architecture.md), [development](docs/development.md), and
+[deployment](docs/deployment.md) for implementation and operations details.
