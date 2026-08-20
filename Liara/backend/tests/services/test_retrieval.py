@@ -173,6 +173,22 @@ def test_lexical_query_filters_persian_function_words() -> None:
     assert retrieval_service._or_query_terms(query) == ("متغیرهای OR محیطی OR لیارا OR اضافهکنم؟")
 
 
+def test_lexical_query_filters_english_function_words() -> None:
+    # The product is bilingual, so an English question needs filtering too.
+    # Unfiltered, this searches for "how OR do OR I OR a", which on the real
+    # corpus buries the Django pages under unrelated AI cookbook pages.
+    assert retrieval_service._or_query_terms("how do I deploy a Django app") == (
+        "deploy OR Django OR app"
+    )
+
+
+def test_platform_names_that_are_also_english_words_stay_searchable() -> None:
+    # "go" and "next" name Liara platforms. Generic stopword lists drop them,
+    # which would make those platforms unsearchable by name.
+    assert retrieval_service._or_query_terms("go version") == "go OR version"
+    assert "Next.js" in retrieval_service._or_query_terms("how to use Next.js")
+
+
 def test_lexical_statement_uses_simple_configuration() -> None:
     statement = retrieval_service._lexical_statement(
         "چطور متغیرهای محیطی را اضافهکنم؟",
