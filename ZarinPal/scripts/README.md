@@ -24,3 +24,11 @@ FORCE=1 make data-download
 ```
 
 The script requires either `curl` (preferred) or `wget`, plus `gzip`.
+
+After downloading, load the CSV into PostgreSQL with:
+
+```bash
+make db-seed
+```
+
+See `docs/development.md` for idempotency and replacement behavior.

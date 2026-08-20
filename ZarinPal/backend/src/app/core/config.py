@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     static_dir: Path = BACKEND_DIR / "static"
+    seed_data_path: Path = BACKEND_DIR.parent / "data" / "challenge_data.csv"
 
     @model_validator(mode="after")
     def assemble_database_url(self) -> Settings:

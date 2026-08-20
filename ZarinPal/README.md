@@ -41,7 +41,7 @@ Open <http://localhost:5175>. Vite proxies `/api` to FastAPI at port 8003. API d
 The application health endpoint does not require a database. Start PostgreSQL before using database-backed features:
 
 ```bash
-docker compose --env-file .env -f infra/compose/compose.dev.yml up postgres -d
+make db-up
 make db-upgrade
 ```
 

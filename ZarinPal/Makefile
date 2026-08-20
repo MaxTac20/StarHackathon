@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: help install dev dev-backend dev-frontend dev-docker build up down logs lint format format-check typecheck test check test-backend test-frontend e2e db-upgrade db-downgrade db-revision api-client data data-download clean
+.PHONY: help install dev dev-backend dev-frontend dev-docker db-up build up down logs lint format format-check typecheck test check test-backend test-frontend e2e db-upgrade db-downgrade db-revision db-seed db-reseed api-client data data-download clean
 
 COMPOSE_PROD := docker compose --env-file .env -f infra/compose/compose.yml
 COMPOSE_DEV := docker compose --env-file .env -f infra/compose/compose.dev.yml
@@ -23,6 +23,9 @@ dev-frontend:
 
 dev-docker: ## Run hot-reload development in Docker
 	$(COMPOSE_DEV) up --build
+
+db-up: ## Start only the development PostgreSQL container
+	$(COMPOSE_DEV) up postgres -d
 
 build: ## Build the frontend and production application image
 	cd frontend && pnpm build
@@ -77,6 +80,13 @@ db-downgrade: ## Revert one database migration
 db-revision: ## Create a migration: make db-revision MESSAGE="add users"
 	@test -n "$(MESSAGE)" || (echo 'MESSAGE is required' && exit 1)
 	cd backend && uv run alembic revision --autogenerate -m "$(MESSAGE)"
+
+db-seed: db-upgrade ## Idempotently seed the payment dataset from SEED_DATA_PATH
+	cd backend && uv run python -m app.cli.seed_data
+
+db-reseed: db-upgrade ## WARNING: replace all imported payment dataset rows
+	@echo 'WARNING: replacing all imported merchants, terminals, categories, sessions, and tries.'
+	cd backend && uv run python -m app.cli.seed_data --replace
 
 api-client: ## Regenerate TypeScript API types from FastAPI OpenAPI
 	@schema_file=$$(mktemp); \
