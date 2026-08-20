@@ -31,12 +31,17 @@ record why.
 | Language | Fully bilingual Persian/English with an explicit toggle |
 | Personalization | User accounts with a saved profile persisting across conversations |
 | Ports | Vite 5174, API 8002, Postgres 5434 |
+| Deadline | Submissions close the evening of **2026-08-21** |
+| Driving model | `openai/gpt-5.6-luna` via OpenRouter, adaptive reasoning effort — `DESIGN.md` §13 |
+| Everything else | Hosted APIs. The only thing we host is the application itself |
+| Git workflow | Branch → PR → merge. No direct pushes to `main` |
+| Remote | `origin` = MaxTac20/StarHackathon; `upstream` = pooya79/StarHackathon |
 | Product shape | Four surfaces over one engine: Ask (cited chat), Diagnose (paste a log), Check (validate an existing config), Generate (artifacts from a described stack). See [`DESIGN.md`](DESIGN.md) |
 | Embeddings | BGE-M3 via OpenRouter — [`decisions/0001`](decisions/0001-embedding-model.md) |
 | Ingestion | Crawl rendered HTML — [`decisions/0002`](decisions/0002-ingestion-source.md) |
 | Config generation | LLM emits a typed spec; deterministic code writes every file — [`decisions/0003`](decisions/0003-llm-never-writes-config.md) |
 | Defective docs | Named below the answer with evidence — [`decisions/0004`](decisions/0004-defective-page-disclosure.md) |
-| Not building | Anything needing population-scale traffic, a mock Liara dashboard, voice, gamification. Full list in `DESIGN.md` §12 |
+| Not building | Anything needing population-scale traffic, a mock Liara dashboard, voice, gamification. Full list in `DESIGN.md` §14 |
 
 ## Done
 

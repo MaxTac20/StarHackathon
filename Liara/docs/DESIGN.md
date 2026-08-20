@@ -473,7 +473,123 @@ Component reuse order per `../AGENTS.md`: existing project primitives → shadcn
 - **Secrets** via `SecretStr` settings, never in `VITE_*`. Secret-shaped strings in pasted
   artifacts are redacted in-process before anything leaves our backend.
 
-## 12. What we are deliberately not building
+## 12. Scope for the deadline
+
+Submissions close **the evening of 2026-08-21**. Roughly two days, paired with an agent,
+where the binding constraint is debugging time rather than typing time. That favours work
+that either passes its tests or fails loudly, over work that needs tuning.
+
+### The demo is five beats
+
+Everything in scope earns its place by serving one of these:
+
+1. A hard Persian question gets a correct multi-page answer with deep citations.
+2. A pasted `liara.json` comes back with a checklist that finds real bugs.
+3. The assistant says **Liara's own documentation page is wrong**, with evidence.
+4. It looks genuinely good in Persian, right-to-left.
+5. It is live on Liara infrastructure and fast.
+
+### Checkpoint sequence
+
+Ordered so every step is independently demoable and each later step is cheaper because
+earlier ones built its plumbing. We decide at each checkpoint against the actual clock,
+not against an estimate.
+
+| # | Step | Why here |
+|---|---|---|
+| 0 | **Deploy a hello-world to Liara** | De-risks 40 points on day one. The first deploy is where the surprises are; the classic way to lose those points is discovering them at midnight on day two. |
+| 1 | Ingest → retrieve → cited chat → RTL | The 135-point substrate. Demoable alone, and a competitive entry by itself. |
+| 2 | Reranking via hosted API | ~1 hour, measured against the golden set. Cut it if the numbers do not move. |
+| 3 | **Check** + the defect callout | Fully deterministic, so it cannot hallucinate or drift. The entire agentic story for 50 points, plus the moment that wins the room. |
+| 4 | **Diagnose**, reduced | Reuses Check's normalization, findings model and rendering. |
+| 5 | **Generate**, three platforms | Reuses Check's validator. Django, Next.js, Docker only. |
+
+### Reductions that make 4 and 5 affordable
+
+- **Diagnose** matches on **upstream tool output** — `[CRITICAL] WORKER TIMEOUT`,
+  `413 Request Entity Too Large`, `419 | PAGE EXPIRED` — which appears in the log
+  regardless of how Liara frames it. That means ~15 signature cards covering the biggest
+  clusters instead of ~90, and **3 deliberately-broken deploys instead of 12**. Liara's
+  own log framing improves windowing precision; it is not required to match.
+- **Generate** ships three platforms, not thirteen. The rubric never asked for breadth.
+
+### Sacrifice order if we are behind
+
+Validator rule count first (15 → 8 still demos), then golden set size (40 → 15 spot
+checks), then eval automation. **Never** the deployment, the RTL quality, or citation
+correctness — those are what a judge sees in the first thirty seconds.
+
+### Biggest schedule risk
+
+Persian normalization and hybrid retrieval interacting badly and eating an afternoon in
+tuning. Mitigation: build the retrieval eval harness early enough that "is this actually
+better?" is a number rather than an argument.
+
+## 13. Model policy and the streaming contract
+
+### Model
+
+**`openai/gpt-5.6-luna`** via OpenRouter. $0.20/M input, $1.20/M output, 1.05M context,
+with `reasoning`, `reasoning_effort`, `include_reasoning`, `tools` and `structured_outputs`
+all supported. Roughly 10× cheaper than the `terra` tier and 12.5× cheaper than `sol`.
+
+**Input cache reads are $0.02/M — 10× under base input.** The system prompt plus the
+manifest is a stable prefix, so the request must be ordered `tools → system → messages`
+with volatile content strictly after the last cache breakpoint. Verify with
+`usage.cache_read_input_tokens`; a persistent zero means a silent invalidator such as a
+timestamp in the prompt.
+
+At high effort a query costs roughly **$0.006**, or ~$0.004 on a cache hit. The whole
+project lands near $20.
+
+### Reasoning effort is adaptive, not fixed
+
+Reasoning tokens bill as output, so max effort is cheap in money and **expensive in
+latency** — plausibly 15–40 seconds. That is earned on a genuine four-page synthesis and
+absurd on "what is the default PHP version for the `laravel` platform".
+
+Default **medium**, escalating to high or max on complexity signals: multi-hop intent,
+several services named, an artifact pasted. Then measure on the golden set — if medium
+matches max on the multi-hop questions, we recover seconds per query for free. This is a
+config value, not an architecture.
+
+### Streaming: structured events, not a spinner
+
+Waiting on a reasoning model with a spinner is bad UX and wastes a scored opportunity.
+Retrieval happens **before** the model call, so real work fills the dead time:
+
+```
+ ~80ms   understanding your question
+~300ms   searching ۱٬۱۴۲ doc pages
+~500ms   narrowing to Django · CLI deploy        ← the profile, visibly working
+~900ms   12 sources across 4 pages
+ ~1.4s   ranking by relevance
+ ~1.6s   reasoning summary, collapsed by default
+    …    answer streams, citations populate
+```
+
+Every line is a real event. Rules: **plain language mirroring the user's mental model,
+never API names**; reasoning collapsed by default; first event inside 100 ms. This scores
+on UX detail (55) and on making agentic work legible (50) simultaneously.
+
+### Frontend stack
+
+Reuse rather than hand-roll streaming state:
+
+- **FastAPI SSE emitting the AI SDK v5 data-stream protocol**, consumed by `useChat` from
+  `@ai-sdk/react`. Adopting the protocol buys client compatibility for free.
+- **Vercel AI Elements**, which installs *through the shadcn CLI* into our codebase and
+  therefore fits the template's existing `components.json`. Provides `Reasoning`,
+  `ChainOfThought`, `Task`, `Sources`, `InlineCitation`, `CodeBlock`.
+- **Streamdown** for the genuinely hard part — rendering markdown that is syntactically
+  incomplete mid-stream — plus its origin-blocking on images and links, which is a
+  prompt-injection control disguised as a renderer feature.
+
+**Gate before committing to AI Elements:** smoke-test a Persian message in it. `assistant-ui`
+explicitly claims first-class RTL and AI Elements does not advertise it. Twenty minutes of
+checking now beats a retrofit later, and RTL quality is not negotiable per §10.
+
+## 14. What we are deliberately not building
 
 Recorded so they are not silently reconsidered:
 
@@ -492,7 +608,7 @@ Recorded so they are not silently reconsidered:
 - **Semantic chunking.** Fixed-size chunking consistently beats it, and it is a build.
 - **Acting on a user's Liara account.** Settled: we hold no user credentials.
 
-## 13. Live risks
+## 15. Live risks
 
 1. **A wrong diff is worse than no diff.** The same symptom has different correct fixes
    depending on deploy path — adding `platform`/`app` to `liara.json` is right on CLI and
