@@ -82,6 +82,14 @@ labels `liara init …` shell commands as `json`. Sniff content; never trust the
 consumed by `useChat`. The frontend must render useful motion within 500 ms of the
 request, because the driving model reasons before it speaks.
 
+Wire framing is part of the contract:
+
+- Every part is one SSE event framed as `data: <JSON>\n\n`; custom parts use
+  `{"type":"data-<name>","data":<payload>}`.
+- Responses carry `x-vercel-ai-ui-message-stream: v1`.
+- Every stream terminates with `data: [DONE]\n\n`, including after a user-safe error
+  part.
+
 Beyond the standard text and reasoning parts, these custom parts are the contract:
 
 | Part | Payload | When |

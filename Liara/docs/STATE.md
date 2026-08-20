@@ -109,6 +109,12 @@ with `make up` in the main checkout. Each worktree has its own `.env` carrying
 
 Session ids are recoverable with `grep -m1 "session id:" <scratchpad>/codex-liara-<slug>.log`.
 
+The cited conversational surface is being built on `codex/liara-chat`: a database-free
+AI SDK v5-compatible stub stream behind `POST /api/chat`, plus the Persian-first bilingual
+chat UI, resilient streaming markdown, citations, phase/source feedback, RTL handling, and
+contained behavioural coverage. Its completion gate is `make check` plus browser verification
+on the handoff-only ports API `8012` and Vite `5184`.
+
 ## Corpus snapshot
 
 `liara-cloud/docs` at commit **`31f2ef7`** (2026-08-15), fetched as a blobless sparse

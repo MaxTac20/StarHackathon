@@ -4,6 +4,7 @@ import { RouterProvider } from "react-router";
 import { AppProviders } from "@/app/providers";
 import { router } from "@/app/router";
 import "@/styles/globals.css";
+import "@fontsource-variable/vazirmatn";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Root element was not found");
