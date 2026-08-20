@@ -6,11 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.chat import ChatRequest
 from app.schemas.retrieval import RetrievedChunk
 from app.services.chat import (
+    SYSTEM_PROMPT,
+    CitationLineRenderer,
     GroundedChatAnswerer,
+    SourceBinding,
     answer_retrieval_queries,
     contextual_retrieval_query,
     filter_retrieval_results,
     interleave_retrieval_results,
+    provider_messages,
 )
 from app.services.embeddings import ChatStreamEvent, ChatUsage, EmbeddingBatch
 from app.services.retrieval import RetrievalRun
@@ -387,3 +391,88 @@ async def test_verified_defective_page_is_marked_and_disclosed() -> None:
     assert "could not find a reliable answer" in answer
     assert "Install the Flask package" not in answer
     assert defective.cite_url not in answer
+
+
+def request_with_profile(question: str, *chips: tuple[str, str]) -> ChatRequest:
+    return ChatRequest.model_validate(
+        {
+            "id": "conversation-test",
+            "messages": [{"role": "user", "parts": [{"type": "text", "text": question}]}],
+            "profile": [{"kind": kind, "value": value} for kind, value in chips],
+        }
+    )
+
+
+def test_established_context_biases_retrieval_without_replacing_the_question() -> None:
+    request = request_with_profile("چطور دیسک اضافه کنم؟", ("platform", "Django"))
+    query = contextual_retrieval_query(request)
+
+    # The question still has to match on its own terms; a stale chip shades the
+    # ranking rather than substituting for what was asked.
+    assert "چطور دیسک اضافه کنم؟" in query
+    assert "Django" in query
+
+
+def test_established_context_never_enters_the_cached_system_prefix() -> None:
+    # The system block is the prompt-cache prefix. Varying it per request would
+    # forfeit the cache read that makes a repeated question about a third cheaper.
+    before = SYSTEM_PROMPT
+    request = request_with_profile("how do I add a disk?", ("platform", "Django"))
+    messages = provider_messages(
+        request,
+        latest_question="how do I add a disk?",
+        bindings=[],
+        is_persian=False,
+    )
+
+    assert SYSTEM_PROMPT == before
+    assert "Django" not in SYSTEM_PROMPT
+    assert any("Django" in str(message["content"]) for message in messages)
+
+
+def test_established_context_is_marked_as_unciteable() -> None:
+    # A chip must never be usable as evidence, or a wrong chip becomes a
+    # fabricated claim rather than merely an unhelpful example.
+    request = request_with_profile("how do I add a disk?", ("platform", "Django"))
+    messages = provider_messages(
+        request,
+        latest_question="how do I add a disk?",
+        bindings=[],
+        is_persian=False,
+    )
+    content = str(messages[-1]["content"])
+
+    assert "supports no claim" in content
+
+
+def test_no_profile_leaves_the_prompt_untouched() -> None:
+    plain = provider_messages(
+        request_with_turns(("user", "how do I add a disk?")),
+        latest_question="how do I add a disk?",
+        bindings=[],
+        is_persian=False,
+    )
+    assert "ESTABLISHED CONTEXT" not in str(plain[-1]["content"])
+
+
+def test_markers_never_reach_the_reader_on_a_heading() -> None:
+    # Headings carry no claim so they get no link, but the model marks them
+    # anyway often enough that an unstripped marker reaches the reader as the
+    # literal text "[[S1]]".
+    renderer = CitationLineRenderer(
+        [
+            SourceBinding(
+                source_id="S1",
+                chunk=retrieved_chunk(chunk_id="paas/details/envs#add-envs:0"),
+                defective=False,
+            )
+        ]
+    )
+    rendered = renderer.feed("## Using Liara CLI [[S1]]\nRun it. [[S1]]\n")
+
+    assert not any("[[S1]]" in line for line in rendered)
+    heading = next(line for line in rendered if line.startswith("## Using Liara CLI"))
+    # The newline is load-bearing: without it the heading welds onto the next
+    # paragraph and renders as one run-on line.
+    assert heading.endswith("\n")
+    assert heading == "## Using Liara CLI\n"

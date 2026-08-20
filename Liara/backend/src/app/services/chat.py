@@ -219,8 +219,19 @@ class CitationLineRenderer:
         if is_fence:
             self._inside_code_fence = not self._inside_code_fence
             return redact_credentials(line)
-        if self._inside_code_fence or not stripped or _is_non_claim_markdown(stripped):
+        if self._inside_code_fence:
             return redact_credentials(line)
+        if not stripped or _is_non_claim_markdown(stripped):
+            # Headings and rules carry no claim, so they get no citation link --
+            # but the model still sometimes marks them, and an unstripped
+            # marker reaches the reader as literal "[[S1]]".
+            #
+            # The trailing newline is load-bearing: these lines are emitted as
+            # markdown, so dropping it welds the heading onto the paragraph that
+            # follows it.
+            cleaned = SOURCE_MARKER_RE.sub("", redact_credentials(line))
+            ending = "\n" if cleaned.endswith("\n") else ""
+            return cleaned.rstrip() + ending
 
         markers = SOURCE_MARKER_RE.findall(line)
         if not markers:
@@ -504,10 +515,22 @@ def contextual_retrieval_query(request: ChatRequest) -> str:
         return ""
     current = user_turns[-1]
     if len(user_turns) == 1 or not looks_like_follow_up(current):
-        return current
+        return _with_profile(current, request)
     previous = user_turns[-2]
     restated = _replace_follow_up_entities(previous, current)
-    return f"{restated}\nFollow-up: {current}"
+    return _with_profile(f"{restated}\nFollow-up: {current}", request)
+
+
+def _with_profile(query: str, request: ChatRequest) -> str:
+    """Bias retrieval toward the stack the conversation has established.
+
+    Appended rather than substituted: the question still has to match on its own
+    terms, and a stale chip should shade the ranking, never replace the query.
+    """
+    if not request.profile:
+        return query
+    context = " ".join(chip.value for chip in request.profile)
+    return f"{query}\n{context}"
 
 
 async def retrieve_for_answer(
@@ -912,12 +935,33 @@ def provider_messages(
                 f"REQUIRED ANSWER LANGUAGE: {'Persian' if is_persian else 'English'}.\n"
                 "Use that language for all prose even when retrieved sources use another "
                 "language.\n\n"
+                f"{_profile_block(request)}"
                 f"LATEST QUESTION:\n{redact_credentials(latest_question)}\n\n"
                 f"RETRIEVED SOURCE BLOCKS:\n{source_blocks}"
             ),
         }
     )
     return history
+
+
+def _profile_block(request: ChatRequest) -> str:
+    """Render the conversation's established context for the model.
+
+    This goes in the message, never in the system prompt: the system block is
+    the cached prefix, and varying it per request would forfeit the cache read
+    that makes a repeated question a third cheaper.
+
+    It shapes wording and worked examples only. Grounding still comes from the
+    retrieved blocks, so a wrong chip cannot manufacture an unsupported claim.
+    """
+    if not request.profile:
+        return ""
+    facts = "\n".join(f"- {chip.kind}: {chip.value}" for chip in request.profile)
+    return (
+        "ESTABLISHED CONTEXT (prefer examples matching it; it is not a source "
+        "and supports no claim):\n"
+        f"{facts}\n\n"
+    )
 
 
 def _source_block(binding: SourceBinding) -> str:

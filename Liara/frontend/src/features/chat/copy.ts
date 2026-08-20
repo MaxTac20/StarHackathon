@@ -2,9 +2,6 @@ import type { ChatPhase, Locale } from "@/features/chat/types";
 
 interface ChatCopy {
   brandEyebrow: string;
-  brandTitle: string;
-  brandSubtitle: string;
-  demoBadge: string;
   newChat: string;
   emptyEyebrow: string;
   emptyTitle: string;
@@ -24,17 +21,11 @@ interface ChatCopy {
   reasoningDone: (duration?: number) => string;
   phaseLabels: Record<ChatPhase, string>;
   genericProgress: string;
-  evidenceTitle: string;
-  evidenceItems: string[];
 }
 
 export const chatCopy: Record<Locale, ChatCopy> = {
   fa: {
     brandEyebrow: "راهنمای مستندات لیارا",
-    brandTitle: "پرسش را بپرس؛ مسیر پاسخ را ببین.",
-    brandSubtitle:
-      "پاسخ‌های دوزبانه با منبع دقیق، کد خوانا و وضعیت واقعی هر مرحله.",
-    demoBadge: "پاسخ مستند و زنده",
     newChat: "گفت‌وگوی تازه",
     emptyEyebrow: "از مستندات رسمی لیارا",
     emptyTitle: "برای deploy بعدی چه چیزی مبهم است؟",
@@ -66,19 +57,9 @@ export const chatCopy: Record<Locale, ChatCopy> = {
       drafting: "تدوین پاسخ",
     },
     genericProgress: "در حال ادامه پردازش",
-    evidenceTitle: "این رابط چه چیزی را نشان می‌دهد؟",
-    evidenceItems: [
-      "حرکت اولیه از مرحله واقعی stream می‌آید.",
-      "منابع پیش از تولید پاسخ ظاهر می‌شوند.",
-      "کد و شناسه‌های لاتین در متن فارسی ایزوله‌اند.",
-    ],
   },
   en: {
     brandEyebrow: "Liara documentation guide",
-    brandTitle: "Ask the question. Watch the answer take shape.",
-    brandSubtitle:
-      "Bilingual answers with precise sources, readable code, and honest pipeline stages.",
-    demoBadge: "Live grounded answer",
     newChat: "New conversation",
     emptyEyebrow: "Grounded in Liara documentation",
     emptyTitle: "What is unclear about your next deploy?",
@@ -113,11 +94,5 @@ export const chatCopy: Record<Locale, ChatCopy> = {
       drafting: "Draft answer",
     },
     genericProgress: "Continuing the pipeline",
-    evidenceTitle: "What this surface makes visible",
-    evidenceItems: [
-      "The first motion comes from a real stream stage.",
-      "Sources land before answer generation starts.",
-      "Latin identifiers stay isolated inside Persian prose.",
-    ],
   },
 };
