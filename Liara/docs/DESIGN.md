@@ -248,19 +248,22 @@ the embedded text** — metadata that isn't embedded doesn't help retrieval. Sto
 
 ## 6. Retrieval
 
-**Embeddings: BGE-M3.** Persian MIRACL nDCG@10 of 61.38 versus OpenAI
-text-embedding-3-large's 41.67 — cross-validated three ways. $0.01/M via OpenRouter, so
-**1.7 cents to embed the entire corpus**. Cost is irrelevant here; optimize purely for
-quality. 1024 dims also stays under pgvector's 2,000-dim index ceiling, which a 3072-dim
-model would breach.
+**Embeddings: Qwen3-Embedding-8B.** Persian MIRACL nDCG@10 of 62.57 — the highest of any
+model OpenRouter serves — against OpenAI text-embedding-3-large's 41.67. $0.01/M, so
+**under two cents to embed the entire corpus**. Cost is irrelevant here; optimize purely
+for quality. See [`decisions/0001`](decisions/0001-embedding-model.md), including why the
+earlier BGE-M3 choice was reversed: its learned sparse head is not exposed by OpenRouter's
+embeddings endpoint, which was the whole reason to prefer it.
 
 **Hybrid, dense-dominant.** Persian BM25 is weak (0.333) while dense is strong (0.480),
 fusing to 0.594 — hybrid buys more in Persian than in most languages. Start α ≈ 0.7 dense.
 
-**The lexical leg splits by script**: BGE-M3's own learned sparse head for Persian prose
-(45.1 versus BM25's 28.7 on Persian, at no extra inference cost since we run the model
-anyway), and BM25 over `to_tsvector('simple', …)` for Latin/CLI tokens where exact match
-is the entire point — `liara.json`, `collectStatic`, `client_max_body_size`.
+**The lexical leg is PostgreSQL `to_tsvector('simple', …)`** over normalized text, for
+both scripts. It matters most for the Latin/CLI tokens where exact match is the entire
+point — `liara.json`, `collectStatic`, `client_max_body_size`. Note this is weaker than
+planned: the design originally gave the Persian lexical side to BGE-M3's learned sparse
+head, which OpenRouter does not expose. Persian BM25 is genuinely weak, which is why
+fusion stays dense-dominant.
 
 **Never `to_tsvector('arabic', …)`.** Its stemmer strips what it thinks are definite
 articles: `برای` → `رای`, and **`لیارا` → `لیار`**. It mangles the client's brand name.
