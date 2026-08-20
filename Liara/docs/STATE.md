@@ -76,6 +76,18 @@ record why.
       (mypy 23 files, tsc, 3 tests, production build), `make up` green with a healthy
       container serving `/api/health` and the SPA on 8002
 - [x] Corpus cloned, pinned and measured — see *Corpus snapshot*
+- [x] Retrieval checkpoint 1: pgvector schema and HNSW/GIN indexes, Qwen3 embedding
+      batches with retry-safe incremental persistence, fixture loading, ZWNJ-aware dense
+      plus `simple` lexical search, and dense-dominant RRF. Verified against PostgreSQL 18
+      and OpenRouter: the Persian fixture query `چطور متغیرهای محیطی را اضافه‌کنم؟`
+      returned `paas/details/envs#add-envs:0` at rank 1 with the exact deep-link citation.
+      Six fixture chunks used 460 tokens and 2.27 seconds of embedding API time, measuring
+      $0.00077 per 1,000 fixture-sized chunks at $0.01/M tokens. The full corpus was not
+      embedded. Two lexical defects found in review and fixed: query-side Persian function
+      words are now filtered (`را` alone matched 5 of 6 chunks, and `simple` has no
+      stopword list by design), and only the ZWNJ-stripped variant reaches the lexical leg
+      — Postgres keeps ZWNJ inside the lexeme, so the preserved variant could never match
+      the stripped index. Both were measured against a live database, not inferred.
 
 ## In progress
 

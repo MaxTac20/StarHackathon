@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     postgres_password: SecretStr = SecretStr("app")
     postgres_host: str = "localhost"
     postgres_port: int = 5432
+    openrouter_api_key: SecretStr | None = None
     secret_key: SecretStr = SecretStr("development-only-change-me")
     host: str = "0.0.0.0"
     port: int = 8000
