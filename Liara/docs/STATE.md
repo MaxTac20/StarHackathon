@@ -13,10 +13,9 @@ passed the verification gate in `../AGENTS.md`.
 
 ## Where we are
 
-Scaffolding, ingestion, retrieval, and the conversational surface are integrated on
-`main`. The real grounded answer engine is now being built on `codex/liara-answer`;
-the current chat implementation is still the deterministic UI stub until that work
-passes its behavioral and live-corpus gates.
+Scaffolding, ingestion, retrieval, the conversational surface, and the real grounded
+answer engine are integrated. `codex/liara-answer` has passed its behavioral, static,
+live-corpus, bilingual-generation, refusal, citation-resolution, and cache-read gates.
 
 **Working locally.** Liara credits have not been released, so checkpoint 0 — deploying a
 hello-world to de-risk the 40 deployment points on day one — cannot run yet. This is the
@@ -49,7 +48,7 @@ record why.
 | Personalization | User accounts with a saved profile persisting across conversations |
 | Ports | Vite 5174, API 8002, Postgres 5434 |
 | Deadline | Submissions close the evening of **2026-08-21** |
-| Driving model | `openai/gpt-5.6-luna` via OpenRouter, adaptive reasoning effort — `DESIGN.md` §13 |
+| Driving model | `openai/gpt-5.6-luna` via OpenRouter; high reasoning effort for the answer-engine checkpoint per its explicit handoff, overriding the adaptive proposal in `DESIGN.md` §13 |
 | Everything else | Hosted APIs. The only thing we host is the application itself |
 | Git workflow | Branch → PR → merge. No direct pushes to `main` |
 | Remote | `origin` = MaxTac20/StarHackathon; `upstream` = pooya79/StarHackathon |
@@ -156,6 +155,22 @@ refusal, defect disclosure, prompt-cache ordering, safe usage telemetry, and liv
 Persian/English evaluation. The live PostgreSQL on port **5444** currently contains
 5,255 rows, of which five have embeddings; this differs from the handoff's earlier
 5,250/zero snapshot and must be reconciled before the one permitted full embedding run.
+Nothing in the answer-engine checkpoint.
+
+## Answer-engine acceptance evidence
+
+- Audited regenerated corpus loaded through `load_corpus_jsonl()`: 5,287 exact rows.
+  Six verified stale snapshot IDs were removed before embedding.
+- Full corpus embedded once through `embed_unembedded_chunks()`: 1,506,676 tokens,
+  737.78 seconds, $0.01506676.
+- `make check` passes with 36 backend tests (one opt-in PostgreSQL test skipped without
+  its dedicated URL) and 31 frontend tests.
+- Live final Persian multi-hop: 20.089 seconds, $0.00147626 on a 3,281-token cache hit.
+- Live final English timeout: 9.554 seconds, $0.00175648.
+- Live unsupported-question refusal: 3.186 seconds, $0.00075291.
+- Seven unique inline citations returned HTTP 200; the deep `#tmp-directory` anchor and
+  every claim-bearing string were present on the live pages.
+- Full transcripts and source checks: [`EVALUATION.md`](EVALUATION.md).
 
 ## Corpus snapshot
 
@@ -216,6 +231,14 @@ worse than excellent Q&A alone.
    demo script. No competitor working from documentation alone can do this.
 8. **`docs/EVALUATION.md`** — all 27 rubric sub-criteria mapped to concrete checks with a
    verdict and evidence each.
+1. Land the audited ingestion snapshot through its own branch, then load the identical
+   5,287-chunk artifact in production; do not silently regenerate a different corpus.
+2. Expand the three live acceptance probes into the versioned golden set from
+   `DESIGN.md` §7, including 15–20% genuinely unanswerable questions.
+3. Deploy as soon as Liara credits arrive and rerun the bilingual, refusal, citation,
+   latency, cost, and prompt-cache checks against the deployed application.
+4. Continue with the validator and artifact-driven surfaces only after the answer-quality
+   baseline remains green.
 
 ## Blocked
 

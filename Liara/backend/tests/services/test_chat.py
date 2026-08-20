@@ -1,16 +1,15 @@
 from collections.abc import AsyncIterator, Sequence
 from typing import cast
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.chat import ChatRequest
 from app.schemas.retrieval import RetrievedChunk
 from app.services.chat import (
-    CitationIntegrityError,
     GroundedChatAnswerer,
     answer_retrieval_queries,
     contextual_retrieval_query,
+    filter_retrieval_results,
     interleave_retrieval_results,
 )
 from app.services.embeddings import ChatStreamEvent, ChatUsage, EmbeddingBatch
@@ -150,16 +149,17 @@ async def test_only_retrieved_source_ids_can_materialize_citation_urls() -> None
     assert "[1](https://docs.liara.ir/paas/details/envs/#add-envs)" in answer
     assert provider.chat_calls[0]["reasoning_effort"] == "high"
     messages = cast(list[dict[str, str]], provider.chat_calls[0]["messages"])
+    assert messages[-1]["content"].startswith("REQUIRED ANSWER LANGUAGE: English.")
     assert '<SOURCE id="S1"' in messages[-1]["content"]
     assert "https://docs.liara.ir/" not in messages[-1]["content"]
 
 
-async def test_unretrieved_source_id_is_rejected_before_it_becomes_a_link() -> None:
+async def test_unretrieved_source_id_is_omitted_before_it_becomes_a_link() -> None:
     provider = FakeProvider(
         [
             ChatStreamEvent(
                 kind="content",
-                text="Set the value this way. [[S99]]\n",
+                text=("Use the retrieved setting. [[S1]]\nDo something unsupported. [[S99]]\n"),
             )
         ]
     )
@@ -173,8 +173,58 @@ async def test_unretrieved_source_id_is_rejected_before_it_becomes_a_link() -> N
         retriever=one_result,
     )
 
-    with pytest.raises(CitationIntegrityError):
-        await collect(answerer, request_with_turns(("user", "How do I set an env var?")))
+    events = await collect(answerer, request_with_turns(("user", "How do I set an env var?")))
+    answer = "".join(cast(str, event["delta"]) for event in events if event["type"] == "text-delta")
+
+    assert "Use the retrieved setting." in answer
+    assert "unsupported" not in answer
+    assert "S99" not in answer
+    assert any(event["type"] == "data-notice" for event in events)
+
+
+async def test_draft_with_only_unretrieved_citations_becomes_a_refusal() -> None:
+    provider = FakeProvider(
+        [ChatStreamEvent(kind="content", text="Do something unsupported. [[S99]]\n")]
+    )
+
+    async def one_result(*args, **kwargs) -> RetrievalRun:  # type: ignore[no-untyped-def]
+        return retrieval_run([retrieved_chunk()])
+
+    answerer = GroundedChatAnswerer(
+        cast(AsyncSession, object()),
+        provider=provider,
+        retriever=one_result,
+    )
+    events = await collect(answerer, request_with_turns(("user", "How do I set an env var?")))
+    answer = "".join(cast(str, event["delta"]) for event in events if event["type"] == "text-delta")
+
+    assert "could not find a reliable answer" in answer
+    assert "unsupported" not in answer
+    assert any(event["type"] == "data-notice" for event in events)
+
+
+async def test_inline_numbers_match_the_deduplicated_source_panel() -> None:
+    duplicate_url = "https://docs.liara.ir/paas/details/envs/#add-envs"
+    provider = FakeProvider(
+        [ChatStreamEvent(kind="content", text="Use the second chunk. [[S2]]\n")]
+    )
+    first = retrieved_chunk(chunk_id="env:first", cite_url=duplicate_url)
+    second = retrieved_chunk(chunk_id="env:second", cite_url=duplicate_url)
+
+    async def duplicate_results(*args, **kwargs) -> RetrievalRun:  # type: ignore[no-untyped-def]
+        return retrieval_run([first, second])
+
+    answerer = GroundedChatAnswerer(
+        cast(AsyncSession, object()),
+        provider=provider,
+        retriever=duplicate_results,
+    )
+    events = await collect(answerer, request_with_turns(("user", "How do I set an env var?")))
+    answer = "".join(cast(str, event["delta"]) for event in events if event["type"] == "text-delta")
+    sources = next(event["data"] for event in events if event["type"] == "data-sources")
+
+    assert len(cast(list[dict[str, str]], sources)) == 1
+    assert f"[1]({duplicate_url})" in answer
 
 
 async def test_model_no_grounding_sentinel_becomes_a_practical_refusal() -> None:
@@ -223,6 +273,15 @@ def test_multi_intent_query_plans_bounded_existing_retrieval_calls() -> None:
     assert "client_max_body_size" in queries[2]
 
 
+def test_exact_timeout_symbol_gets_a_high_precision_query_first() -> None:
+    queries = answer_retrieval_queries(
+        "How do I raise GUNICORN_TIMEOUT after a Django WORKER TIMEOUT?"
+    )
+
+    assert queries[0] == "Django WORKER TIMEOUT GUNICORN_TIMEOUT environment variable"
+    assert len(queries) == 2
+
+
 def test_multi_query_results_are_interleaved_instead_of_losing_an_intent() -> None:
     upload = retrieval_run(
         [
@@ -247,8 +306,59 @@ def test_multi_query_results_are_interleaved_instead_of_losing_an_intent() -> No
     ]
 
 
+def test_explicit_platform_and_surface_filter_remove_sibling_distractors() -> None:
+    django = retrieved_chunk(
+        chunk_id="paas/django/fix:0",
+        path="paas/django/fix",
+    )
+    shared_disk = retrieved_chunk(
+        chunk_id="paas/disks/route:0",
+        path="paas/disks/route",
+    )
+    flask = retrieved_chunk(
+        chunk_id="paas/flask/fix:0",
+        path="paas/flask/fix",
+    )
+    iaas = retrieved_chunk(
+        chunk_id="iaas/disks/mount:0",
+        path="iaas/disks/mount",
+    )
+    ai_next = retrieved_chunk(
+        chunk_id="ai/getting-started/nextjs:0",
+        path="ai/getting-started/nextjs",
+    )
+    email = retrieved_chunk(
+        chunk_id="email-server/details/common-errors:0",
+        path="email-server/details/common-errors",
+    )
+
+    filtered = filter_retrieval_results(
+        "در برنامه Django بعد از deploy فایل‌ها پاک می‌شوند",
+        [django, shared_disk, flask, iaas, ai_next, email],
+    )
+
+    assert [result.id for result in filtered] == [
+        "paas/django/fix:0",
+        "paas/disks/route:0",
+    ]
+    assert (
+        filter_retrieval_results(
+            "در برنامه Django بعد از deploy فایل‌ها پاک می‌شوند",
+            [flask, iaas, ai_next, email],
+        )
+        == []
+    )
+
+
 async def test_verified_defective_page_is_marked_and_disclosed() -> None:
-    provider = FakeProvider([ChatStreamEvent(kind="content", text="[[NO_GROUNDING]]")])
+    provider = FakeProvider(
+        [
+            ChatStreamEvent(
+                kind="content",
+                text="Install the Flask package for .NET. [[S1]]\n",
+            )
+        ]
+    )
     defective = retrieved_chunk(
         chunk_id="dbaas/redis/how-tos/connect-via-platform/dotnet#page:0",
         path="dbaas/redis/how-tos/connect-via-platform/dotnet",
@@ -270,6 +380,10 @@ async def test_verified_defective_page_is_marked_and_disclosed() -> None:
     )
     sources = next(event["data"] for event in events if event["type"] == "data-sources")
     notices = [event["data"] for event in events if event["type"] == "data-notice"]
+    answer = "".join(cast(str, event["delta"]) for event in events if event["type"] == "text-delta")
 
     assert cast(list[dict[str, str]], sources)[0]["title"].startswith("⚠")
     assert any("Flask and Python" in cast(dict[str, str], notice)["text"] for notice in notices)
+    assert "could not find a reliable answer" in answer
+    assert "Install the Flask package" not in answer
+    assert defective.cite_url not in answer
