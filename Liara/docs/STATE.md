@@ -13,7 +13,8 @@ passed the verification gate in `../AGENTS.md`.
 
 ## Where we are
 
-Scaffolding and design are done and under review in PR #1. No application code exists yet.
+Scaffolding, design, and the first cited conversational surface are complete. Retrieval
+and the remaining product lanes are still separate follow-up work.
 
 **Working locally.** Liara credits have not been released, so checkpoint 0 — deploying a
 hello-world to de-risk the 40 deployment points on day one — cannot run yet. This is the
@@ -90,6 +91,14 @@ record why.
       the stripped index. Both were measured against a live database, not inferred. The
       index stays lossless; a 12-decoy PostgreSQL flooding regression and an adversarial
       top-three RRF test cover both.
+- [x] `codex/liara-chat` conversational surface — database-free AI SDK v5 stub stream,
+      replaceable answerer seam, Persian-first bilingual UI, citations, reasoning and
+      source disclosure, resilient streaming markdown, code copy, and mixed-direction
+      isolation. `make check` passes with 12 backend and 4 frontend tests. Browser gates
+      passed on local-only API `8012` and Vite `5184`: first status motion stayed below
+      500 ms, all phases advanced, sources preceded answer text, incomplete links and
+      fences remained visually valid, and 390x844 plus 1440x900 kept the composer visible
+      without page-width overflow.
 
 ## In progress
 
@@ -109,11 +118,8 @@ with `make up` in the main checkout. Each worktree has its own `.env` carrying
 
 Session ids are recoverable with `grep -m1 "session id:" <scratchpad>/codex-liara-<slug>.log`.
 
-The cited conversational surface is being built on `codex/liara-chat`: a database-free
-AI SDK v5-compatible stub stream behind `POST /api/chat`, plus the Persian-first bilingual
-chat UI, resilient streaming markdown, citations, phase/source feedback, RTL handling, and
-contained behavioural coverage. Its completion gate is `make check` plus browser verification
-on the handoff-only ports API `8012` and Vite `5184`.
+No work remains on the `codex/liara-chat` lane; it is committed as `6d68ab9` and is ready
+for review. It deliberately remains unmerged and unre-based.
 
 ## Corpus snapshot
 
