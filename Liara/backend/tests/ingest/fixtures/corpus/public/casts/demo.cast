@@ -1,0 +1,7 @@
+{"version": 2, "width": 80, "height": 24, "timestamp": 0, "env": {"SHELL": "/bin/zsh", "TERM": "xterm-256color"}}
+[0.1, "o", "\u001b]0;user@host:~\u0007$ liara db create "]
+[0.2, "o", "--plan=small-g2"]
+[0.3, "o", "\u001b[15D--plan=small-g2 --public-network\r\n"]
+[0.4, "o", "Database my-db created.\r\n"]
+[0.45, "o", "\u001b[36m$ liara example\u001b[39m\r\n"]
+[0.5, "o", "\u001b]0;user@host:~\u0007$ "]

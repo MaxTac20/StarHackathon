@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     static_dir: Path = BACKEND_DIR / "static"
+    ingest_corpus_dir: Path | None = None
 
     @model_validator(mode="after")
     def assemble_database_url(self) -> Settings:
