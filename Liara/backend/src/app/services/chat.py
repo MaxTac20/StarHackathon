@@ -25,6 +25,7 @@ from app.services.embeddings import (
     OpenRouterClient,
 )
 from app.services.retrieval import RetrievalRun, retrieve
+from app.utils.persian import normalize
 
 logger = logging.getLogger(__name__)
 
@@ -276,10 +277,11 @@ class GroundedChatAnswerer:
         yield status_chunk("retrieving", is_persian=is_persian)
 
         try:
-            retrieval_run = await self._retriever(
+            retrieval_run = await retrieve_for_answer(
                 self._session,
                 provider,
                 search_query,
+                retriever=self._retriever,
                 top_k=TOP_K,
             )
             yield status_chunk("reading", is_persian=is_persian)
@@ -466,6 +468,100 @@ def contextual_retrieval_query(request: ChatRequest) -> str:
     previous = user_turns[-2]
     restated = _replace_follow_up_entities(previous, current)
     return f"{restated}\nFollow-up: {current}"
+
+
+async def retrieve_for_answer(
+    session: AsyncSession,
+    provider: Provider,
+    query: str,
+    *,
+    retriever: Retriever,
+    top_k: int,
+) -> RetrievalRun:
+    runs = [
+        await retriever(session, provider, planned_query, top_k=top_k)
+        for planned_query in answer_retrieval_queries(query)
+    ]
+    return RetrievalRun(
+        query_variants=[query for run in runs for query in run.query_variants],
+        results=interleave_retrieval_results(runs, top_k=top_k),
+        embedding_tokens=sum(run.embedding_tokens for run in runs),
+        embedding_latency_seconds=sum(run.embedding_latency_seconds for run in runs),
+    )
+
+
+def answer_retrieval_queries(query: str) -> list[str]:
+    folded = normalize(query).casefold()
+    is_persian = bool(PERSIAN_RE.search(query))
+    planned = [query]
+
+    next_isr = "isr" in folded or (
+        "next" in folded and any(token in folded for token in ("cache", "کش"))
+    )
+    persistence = any(
+        token in folded
+        for token in (
+            "ماندگار",
+            "دائمی",
+            "پاک می",
+            "حذف می",
+            "بعد از deploy",
+            "بعد از استقرار",
+            "persist",
+            "durable",
+            "disappear",
+            "survive",
+            "ephemeral",
+        )
+    )
+    upload_limit = any(token in folded for token in ("upload", "اپلود", "413")) and any(
+        token in folded for token in ("limit", "محدودیت", "حجم", "nginx", "413")
+    )
+
+    # The corpus's dedicated ISR page already retrieves both router variants
+    # from the full question. A generic persistence expansion adds unrelated
+    # AI/Next.js pages, so leave this high-precision case alone.
+    if persistence and not next_isr:
+        planned.append(
+            "فایل‌سیستم موقت، فایل‌های کاربر، ساخت دیسک و تعریف مسیر اتصال دیسک"
+            if is_persian
+            else "ephemeral filesystem user uploads create disk and disk mount path"
+        )
+
+    if upload_limit:
+        planned.append(
+            "محدودیت حجم آپلود Nginx و client_max_body_size و خطای 413"
+            if is_persian
+            else "Nginx upload limit client_max_body_size 413"
+        )
+    return list(dict.fromkeys(planned[:3]))
+
+
+def interleave_retrieval_results(
+    runs: Sequence[RetrievalRun],
+    *,
+    top_k: int,
+) -> list[RetrievedChunk]:
+    results: list[RetrievedChunk] = []
+    seen_ids: set[str] = set()
+    rank = 0
+    while len(results) < top_k:
+        added = False
+        for run in runs:
+            if rank >= len(run.results):
+                continue
+            candidate = run.results[rank]
+            if candidate.id in seen_ids:
+                continue
+            seen_ids.add(candidate.id)
+            results.append(candidate)
+            added = True
+            if len(results) == top_k:
+                break
+        if not added and all(rank >= len(run.results) - 1 for run in runs):
+            break
+        rank += 1
+    return results
 
 
 def looks_like_follow_up(text: str) -> bool:
