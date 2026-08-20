@@ -4,6 +4,11 @@ Challenge 3 submission: an analysis dashboard for the supplied ZarinPal dataset.
 combines a FastAPI API, React client, and PostgreSQL without adding layers that a new
 product does not yet need.
 
+The submission is designed around the challenge's highest-value outcome: actionable,
+original merchant insights whose calculations and contributing payment attempts can be
+inspected in the UI. See the [challenge success criteria](docs/challenge-criteria.md)
+for judging priorities, required deliverables, and the feature review checklist.
+
 ## Stack
 
 - Python 3.14, FastAPI, Pydantic Settings, SQLAlchemy 2, psycopg, and Alembic
@@ -115,7 +120,8 @@ AGENTS.md              Rules and workflows for coding agents
 Makefile              Stable developer commands
 ```
 
-Start with the [product brief](docs/product-brief.md), [design system](DESIGN.md),
+Start with the [challenge success criteria](docs/challenge-criteria.md),
+[product brief](docs/product-brief.md), [design system](DESIGN.md),
 [metric contracts](docs/metrics.md), and [data dictionary](docs/data-dictionary.md).
 See [architecture](docs/architecture.md), [development](docs/development.md), and
 [deployment](docs/deployment.md) for implementation and operations details.

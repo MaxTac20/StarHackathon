@@ -12,6 +12,24 @@ React/Vite -> FastAPI -> PostgreSQL
 
 Development runs Vite and FastAPI separately for hot reload; Vite proxies relative `/api` calls. Production compiles React and copies it into one Node-free FastAPI application image. FastAPI serves API routes, assets, and the React Router SPA fallback. PostgreSQL remains a separate service.
 
+## Challenge priorities for every agent
+
+The judging criteria are product requirements, not end-of-project presentation notes.
+Optimize work in this order: **actionability and originality (90 points), accuracy and
+traceability (75), analytical depth (60), non-technical UX (45), and technical quality
+and executability (30)**.
+
+Do not mistake a collection of charts for the requested product. A primary insight must
+connect a quantified finding to a feasible merchant action, explain its evidence and
+limitations, and let the user drill down to the contributing sessions or payment
+attempts. Analysis must respect attempt-level grain, merchant-volume concentration, and
+null coverage. Prefer a few defensible end-to-end insight journeys over many descriptive
+visualizations.
+
+Before planning or implementing analytics, read
+[the challenge success criteria](docs/challenge-criteria.md). Use its feature review
+checklist during implementation and review.
+
 ## Product constraints
 
 - Persian is the primary product language and layout direction is RTL. English is a
@@ -30,9 +48,10 @@ Development runs Vite and FastAPI separately for hot reload; Vite proxies relati
 - Treat `data/` as local source data. Do not commit the supplied CSV, derived datasets,
   merchant-identifying exports, or raw payment records.
 
-Read [the product brief](docs/product-brief.md), [metric contracts](docs/metrics.md),
-[the data dictionary](docs/data-dictionary.md), and [the design system](DESIGN.md) before
-implementing analytics or user-facing UI.
+Read [the challenge success criteria](docs/challenge-criteria.md),
+[the product brief](docs/product-brief.md), [metric contracts](docs/metrics.md),
+[the data dictionary](docs/data-dictionary.md), and [the design system](DESIGN.md)
+before implementing analytics or user-facing UI.
 
 ## Repository map
 

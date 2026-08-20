@@ -25,6 +25,19 @@ the dashboard, they should be able to answer:
 The dashboard is diagnostic, not merely descriptive: overview signals lead to a useful
 breakdown and ultimately to the filtered contributing records.
 
+## Product success lens
+
+The challenge rewards actionable and original insights most heavily, followed by
+accuracy and traceability, analytical depth, usability for non-technical merchants, and
+technical quality. See [challenge-criteria.md](challenge-criteria.md) for the official
+deliverables, score weighting, and submission-readiness checklist.
+
+The default product unit is therefore an **insight journey**, not a chart. It begins
+with a plain-language quantified finding, narrows the finding to the supported segment
+or condition that contributes most, proposes a feasible next action, explains evidence
+and limitations, and ends at the contributing sessions and attempts. Charts and KPIs
+support that journey; they are not the outcome by themselves.
+
 ## Product principles
 
 ### Merchant isolation
@@ -91,4 +104,8 @@ be shareable in the URL where it does not reveal sensitive information.
 
 A feature is complete when its server-side merchant scope, metric contract, Persian and
 English copy, RTL/LTR behavior, light/dark presentation, loading/empty/error states,
-drill-down path, and representative tests are all present.
+drill-down path, and representative tests are all present. A primary insight feature
+must additionally pass the feature review checklist in
+[challenge-criteria.md](challenge-criteria.md), including quantified impact, an
+appropriate comparison, a feasible action, visible limitations and null coverage, and
+mobile/desktop demo readiness.
