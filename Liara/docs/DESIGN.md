@@ -23,10 +23,16 @@ The rubric is not shaped like a chatbot contest. Security, deployment and cost t
 115 points (38%) and depend on engineering discipline rather than model cleverness. UI/UX
 at 55 outranks agentic at 50. Answer quality at 80 is the largest single bucket.
 
-So: **the cited-RAG chat is the substrate, not the product.** It carries the 80 answer
-quality points and most of the 55 UI points regardless of what else we build. The
-differentiation has to sit somewhere that also serves those buckets rather than competing
-with them.
+So: **the cited-RAG chat is the substrate, not the product — but it is also the majority
+of the score.** Answer quality (80) plus UI/UX (55) is 135 points, against 50 for
+everything agentic. The chat carries 2.7× the weight of the differentiators, and it is
+where the two failure modes the briefing actually names — users who did not understand the
+docs, and users who never found them — get solved.
+
+The differentiation therefore has to sit somewhere that *also* serves those buckets rather
+than competing with them for build time. A team that builds brilliant agentic lanes on top
+of mediocre retrieval loses more points than one that ships excellent Q&A alone. Sequence
+accordingly (see `STATE.md`).
 
 A survey of the docs-AI industry found the differentiators available:
 
@@ -52,10 +58,70 @@ credential-holding incumbents left empty.
 
 Four entry points, one engine.
 
-### 3.1 Ask — cited bilingual chat
+### 3.1 Ask — cited bilingual Q&A
 
-The substrate. Hybrid retrieval over the docs, answers in the user's language, citations
-deep-linked to the exact section. Everything in §5, §6 and §7 serves this.
+**This is the largest part of the product, not a fallback.** Answer quality is 80 points
+and UI/UX is 55 — together 135 of 300, against 50 for everything agentic. Sections 5, 6
+and 7 exist entirely to serve this surface. If the artifact lanes were cut tomorrow, this
+would still be a competitive entry; the reverse is not true.
+
+The briefing names **two** distinct failure modes, and they need different answers:
+
+**"Did not understand something in the documentation."** A correct, complete, cited answer
+in the user's language. The scored sub-criteria are specific — correct and relevant,
+complete and practical, few fabrications, appropriate sources, and **good performance on
+simple *and* complex questions**. That last one is a real test, because this corpus makes
+many correct answers multi-hop:
+
+- Raising the upload limit needs the Nginx conf *and* `details/file-system` (why `/tmp`
+  is 100 MB) *and* `disks/create` *and* `disks/route` — four pages, and a single-page
+  answer fixes only half the problem, leaving uploads that vanish on every deploy.
+- Next.js ISR cache persistence needs a disk mounted at a path that **differs between
+  Pages Router and App Router**, a distinction stated on exactly one page.
+- "Which PHP version do I get?" has *different correct answers* for platform `php`
+  (8.0) and platform `laravel` (7.4), documented on two separate pages.
+- "Why can't my app reach my database?" — the honest answer is that the private network
+  is immutable and the app must be recreated, which no single page states.
+
+Multi-hop synthesis is therefore a first-class requirement, not a stretch goal. The golden
+set (§7) must be weighted toward these, because they are what separates a demo from a
+product and they are what the rubric means by "پیچیده".
+
+**"Never found the relevant document at all."** This is a discovery problem and retrieval
+quality alone does not solve it — the user has to be able to arrive without knowing the
+right word. Three mechanisms:
+
+- **Path-derived routing.** The URL taxonomy is rigid enough that a
+  `(product × platform × task)` routing table falls out of paths alone, with no
+  embeddings. Every PaaS platform repeats the identical skeleton — `getting-started`,
+  `quick-start`, `how-tos/{create-app, deploy-app, set-envs, use-disk, use-hooks,
+  set-cron-job, choose-version, connect-to-db/*}`, `fix-common-errors/*`. This is the
+  corpus's single strongest structural asset and it is free.
+- **Suggested next steps and adjacent topics** drawn from that table, so an answer about
+  disks surfaces backups and plan limits without the user knowing to ask.
+- **The keyboard-layout synonym table** (§6), because a user typing `react` with the
+  Persian layout produces `قثشزف`, and no embedding model will ever match it.
+
+**Three answer-shaping rules specific to this corpus:**
+
+1. **Deploy path is a first-class dimension.** Console, CLI and GitHub give *genuinely
+   different correct answers* — `app` and `platform` must be omitted on the GitHub path or
+   the deploy fails; `.liaraignore` only applies to the CLI. The docs interleave all three
+   under near-identical headings, which is exactly where naive retrieval blends the wrong
+   branch. When the path is unknown and the answer diverges, ask — one chip-style
+   question, not a guess.
+2. **Model the Console-only surface explicitly.** 17% of pages carry their only
+   instruction inside a screenshot or video. On those questions the assistant must say
+   "this is a Console action: برنامه → تنظیمات → متغیرها" and describe the navigation path.
+   Inventing a CLI equivalent is the worst available failure, and it is the one a
+   retrieval-only system will drift into because it retrieved prose containing no commands.
+3. **An explicit refusal contract.** When retrieval comes back thin, say the docs do not
+   cover it rather than improvising — and hand over a pre-filled support handoff carrying
+   the conversation, the stack fingerprint, and the pages already consulted, so the ticket
+   arrives triaged rather than from zero. A bot that always answers is a liability.
+
+Conversation continuation is scored separately: context maintained across turns, the
+profile conditioning every answer, and follow-ups that do not require re-stating the stack.
 
 ### 3.2 Diagnose — paste the thing that broke
 
