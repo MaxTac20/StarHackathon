@@ -45,7 +45,7 @@ record why.
 | LLM hosting | A third-party provider. Only the application itself is deployed to Liara |
 | Agent scope | Guides the user and generates artifacts for them to run. It does not act on a user's Liara account, so no user credentials are held |
 | Language | Fully bilingual Persian/English with an explicit toggle |
-| Personalization | User accounts with a saved profile persisting across conversations |
+| Personalization | **Session-scoped profile chips, no accounts.** Decided 2026-08-20. The rubric scores *«شخصی‌سازی پاسخ‌ها»* and *«حفظ Context مکالمه»* — the answer changing shape, never identity persisting across devices. Accounts would add an auth surface that criterion 4 is judged on, and `EventSource` cannot send an `Authorization` header, so the cookie semantics would first break on the deployed origin we cannot reach until credits land |
 | Ports | Vite 5174, API 8002, Postgres 5434 |
 | Deadline | Submissions close the evening of **2026-08-21** |
 | Driving model | `openai/gpt-5.6-luna` via OpenRouter; high reasoning effort for the answer-engine checkpoint per its explicit handoff, overriding the adaptive proposal in `DESIGN.md` §13 |
@@ -182,19 +182,9 @@ asciinema casts, and Liara's own Meilisearch indexer under `indexer/`.
 A full `git clone` of this repo exceeds two minutes on this connection; always use the
 sparse form.
 
-## Open decisions, blocking checkpoint 1
+## Open decisions
 
-1. **Personalization depth.** Session-scoped profile chips instead of user accounts?
-   Drops auth, user storage, and a privacy surface that criterion 4 would then be judged
-   on. The rubric's personalization language is *«شخصی‌سازی پاسخ‌ها»*, *«حفظ Context
-   مکالمه»* and *«تجربه مناسب در ادامه Conversation»* — the scored object is the answer
-   changing shape, never identity persisting across sessions or devices. The load-bearing
-   cost is not the login form but SSE: `EventSource` cannot set an `Authorization`
-   header, so auth means cookie semantics that differ between `localhost:5174` and the
-   deployed origin — and that failure would surface on the environment we cannot reach
-   until credits land. **Recommended: yes, session-scoped**, with a shareable session
-   link (≈1 hour) as the demo beat instead. The profile is a typed object either way, so
-   accounts stay an additive upgrade at checkpoint 5.
+None.
 
 ## Next
 

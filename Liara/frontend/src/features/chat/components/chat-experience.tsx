@@ -1,14 +1,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import {
-  BookOpen,
-  Languages,
-  MessageSquareText,
-  Plus,
-  RotateCcw,
-  Sparkles,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+import { BookOpen, MessageSquareText, RotateCcw, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Conversation,
   ConversationContent,
@@ -27,20 +20,39 @@ import {
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { ConversationContext } from "@/features/chat/components/conversation-context";
+import {
+  deriveChips,
+  loadChips,
+  mergeChips,
+  type ProfileChip,
+  saveChips,
+} from "@/features/chat/profile";
 import { chatCopy } from "@/features/chat/copy";
 import { ChatMessage } from "@/features/chat/components/chat-message";
-import type { LiaraChatMessage, Locale } from "@/features/chat/types";
+import type {
+  ChatSource,
+  LiaraChatMessage,
+  Locale,
+} from "@/features/chat/types";
 import { cn } from "@/lib/utils";
-
-const transport = new DefaultChatTransport<LiaraChatMessage>({
-  api: "/api/chat",
-});
 
 export function ChatExperience() {
   const [locale, setLocale] = useState<Locale>("fa");
   const [input, setInput] = useState("");
+  const [chips, setChips] = useState<ProfileChip[]>(loadChips);
   const copy = chatCopy[locale];
+
+  // The transport closes over the chips, so it has to be rebuilt when they
+  // change or a send would carry the previous context.
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport<LiaraChatMessage>({
+        api: "/api/chat",
+        body: { profile: chips },
+      }),
+    [chips],
+  );
   const {
     clearError,
     error,
@@ -58,6 +70,41 @@ export function ChatExperience() {
     document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
     document.documentElement.lang = locale;
   }, [locale]);
+
+  // Context is derived from the pages that actually grounded an answer, so a
+  // chip always has a reason a user can trace. Persisted per browser: the
+  // session is the scope, there are no accounts.
+  const streamedSources = useMemo(
+    () =>
+      messages.flatMap((message) =>
+        message.parts.flatMap((part) =>
+          part.type === "data-sources" ? (part.data as ChatSource[]) : [],
+        ),
+      ),
+    [messages],
+  );
+
+  useEffect(() => {
+    if (streamedSources.length === 0) return;
+    setChips((current) => {
+      const merged = mergeChips(current, deriveChips(streamedSources));
+      return merged.length === current.length ? current : merged;
+    });
+  }, [streamedSources]);
+
+  useEffect(() => {
+    saveChips(chips);
+  }, [chips]);
+
+  const addChip = (value: string) =>
+    setChips((current) => mergeChips(current, [{ kind: "other", value }]));
+
+  const removeChip = (chip: ProfileChip) =>
+    setChips((current) =>
+      current.filter(
+        (item) => !(item.kind === chip.kind && item.value === chip.value),
+      ),
+    );
 
   const submitText = async (text: string) => {
     const value = text.trim();
@@ -94,17 +141,10 @@ export function ChatExperience() {
               <p className="truncate text-xs font-semibold tracking-wide text-primary">
                 {copy.brandEyebrow}
               </p>
-              <p className="truncate text-sm text-muted-foreground">
-                {copy.brandSubtitle}
-              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="hidden items-center gap-1.5 rounded-full border bg-muted/55 px-3 py-1.5 text-xs text-muted-foreground sm:flex">
-              <Sparkles />
-              {copy.demoBadge}
-            </span>
             <fieldset className="m-0 flex rounded-xl border bg-muted/50 p-1">
               <legend className="sr-only">Language</legend>
               {(["fa", "en"] as const).map((language) => (
@@ -136,48 +176,12 @@ export function ChatExperience() {
 
         <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[290px_minmax(0,1fr)]">
           <aside className="order-2 flex flex-col rounded-2xl border border-border/80 bg-background/78 p-4 shadow-sm backdrop-blur-xl lg:order-1">
-            <div className="flex items-center gap-2 text-primary">
-              <Languages />
-              <p className="text-xs font-semibold tracking-wide">
-                {locale === "fa"
-                  ? "فارسی‌اول، واقعاً دوزبانه"
-                  : "Persian-first, fully bilingual"}
-              </p>
-            </div>
-            <h1 className="mt-4 text-balance text-2xl font-bold leading-[1.45] tracking-tight sm:text-3xl">
-              {copy.brandTitle}
-            </h1>
-            <p className="mt-3 text-sm leading-7 text-muted-foreground">
-              {copy.emptyDescription}
-            </p>
-
-            <Separator className="my-5" />
-
-            <p className="text-xs font-semibold text-foreground">
-              {copy.evidenceTitle}
-            </p>
-            <ul className="mt-3 flex flex-col gap-3">
-              {copy.evidenceItems.map((item, index) => (
-                <li
-                  className="flex gap-2.5 text-sm leading-6 text-muted-foreground"
-                  key={item}
-                >
-                  <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/8 font-mono text-[0.65rem] text-primary">
-                    {index + 1}
-                  </span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-auto hidden pt-8 text-xs leading-6 text-muted-foreground lg:block">
-              <p className="flex items-center gap-2">
-                <Plus />
-                {locale === "fa"
-                  ? "هر منبع در تب تازه و روی cite_url خودش باز می‌شود."
-                  : "Every citation opens its exact cite_url in a new tab."}
-              </p>
-            </div>
+            <ConversationContext
+              chips={chips}
+              locale={locale}
+              onAdd={addChip}
+              onRemove={removeChip}
+            />
           </aside>
 
           <section className="order-1 flex h-[calc(100dvh-10rem)] min-h-[32rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-border/80 bg-card/88 shadow-[0_24px_80px_color-mix(in_oklab,var(--foreground)_8%,transparent)] backdrop-blur-xl lg:order-2 lg:h-auto lg:min-h-0">
