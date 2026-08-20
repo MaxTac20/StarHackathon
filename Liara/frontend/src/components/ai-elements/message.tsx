@@ -315,7 +315,8 @@ export const MessageBranchPage = ({
 
 export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
-type CodePlugin = typeof import("@streamdown/code")["code"];
+type CodePlugin =
+  typeof import("@/lib/code-highlighter")["limitedCodeHighlighter"];
 
 export const MessageResponse = memo(
   ({ className, children, ...props }: MessageResponseProps) => {
@@ -325,7 +326,9 @@ export const MessageResponse = memo(
 
     useEffect(() => {
       if (!containsCodeFence || codePlugin) return;
-      void import("@streamdown/code").then(({ code }) => setCodePlugin(code));
+      void import("@/lib/code-highlighter").then(({ limitedCodeHighlighter }) =>
+        setCodePlugin(limitedCodeHighlighter),
+      );
     }, [codePlugin, containsCodeFence]);
 
     const plugins = useMemo(
