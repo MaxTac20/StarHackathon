@@ -1,14 +1,24 @@
+import { Button, Stack, Typography } from "@mui/material";
 import { Link } from "react-router";
-import { Button } from "@/components/ui/button";
+import { useLocale } from "@/app/i18n";
 
 export function NotFoundPage() {
+  const { messages } = useLocale();
   return (
-    <section className="space-y-4 text-center">
-      <p className="text-sm font-medium text-primary">404</p>
-      <h1 className="text-4xl font-semibold">Page not found</h1>
-      <Button asChild variant="outline">
-        <Link to="/">Return home</Link>
+    <Stack
+      component="section"
+      spacing={2}
+      sx={{ alignItems: "center", textAlign: "center" }}
+    >
+      <Typography variant="body2" color="primary" sx={{ fontWeight: 600 }}>
+        {messages.error404}
+      </Typography>
+      <Typography component="h1" variant="h1">
+        {messages.notFound}
+      </Typography>
+      <Button component={Link} to="/" variant="outlined">
+        {messages.returnHome}
       </Button>
-    </section>
+    </Stack>
   );
 }

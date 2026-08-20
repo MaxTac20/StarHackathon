@@ -37,7 +37,7 @@ implementing analytics or user-facing UI.
 ## Repository map
 
 - `backend/`: Python package, FastAPI app, Alembic migrations, pytest tests
-- `frontend/`: React app, shadcn primitives, Vitest and Playwright tests
+- `frontend/`: React app, MUI/MUI X design system, Vitest and Playwright tests
 - `infra/docker/`: multi-stage application Dockerfile
 - `infra/compose/`: production and development Compose files
 - `docs/`: focused architecture, workflow, and deployment notes
@@ -65,7 +65,7 @@ Within `frontend/src/`:
 
 - `app/`: application initialization, router, and providers
 - `features/`: feature-specific API functions, query hooks, schemas, and UI
-- `components/ui/`: shadcn-generated or shadcn-style primitives
+- `components/ui/`: legacy or approved fallback primitives; do not duplicate MUI
 - `components/common/`: reusable application components
 - `api/`: generic fetch infrastructure and generated OpenAPI types
 - `pages/`: route-level composition
@@ -74,8 +74,9 @@ Within `frontend/src/`:
 
 Keep feature-specific code under its feature. Put genuinely reusable UI in `components`; leave shadcn primitives in `components/ui`. Use TanStack Query for server state—do not hand-roll server-state caches with `useEffect`. Forms use React Hook Form, Zod, and the existing resolver. API calls go through the API layer and always use relative `/api/...` paths; never hardcode a backend origin. Do not edit `api/generated/schema.ts` manually.
 
-Use the existing shadcn/ui New York foundation and compose its primitives before adding
-custom components. Internationalized copy belongs in locale resources rather than JSX.
+Use MUI and MUI X as the authoritative UI foundation and compose their primitives before
+adding custom components. shadcn is fallback-only under the policy in `DESIGN.md`.
+Internationalized copy belongs in locale resources rather than JSX.
 Test both `dir="rtl"` and `dir="ltr"`; do not fake RTL by reversing individual flex rows.
 
 ## Commands

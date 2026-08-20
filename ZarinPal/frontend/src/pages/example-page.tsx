@@ -1,53 +1,75 @@
-import { RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import CheckCircleOutline from "@mui/icons-material/CheckCircleOutlineOutlined";
+import Refresh from "@mui/icons-material/Refresh";
 import {
+  Alert,
+  Box,
+  Button,
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  CircularProgress,
+  Stack,
+  Typography,
+} from "@mui/material";
+import { useLocale } from "@/app/i18n";
 import { useHealth } from "@/features/example/hooks/use-health";
 
 export function ExamplePage() {
   const health = useHealth();
+  const { messages } = useLocale();
 
   return (
-    <section className="mx-auto max-w-xl space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">
-          End-to-end example
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          This page uses TanStack Query to call FastAPI through the shared API
-          client.
-        </p>
-      </div>
+    <Stack component="section" spacing={3} sx={{ maxWidth: 720, mx: "auto" }}>
+      <Box>
+        <Typography component="h1" variant="h1" gutterBottom>
+          {messages.systemTitle}
+        </Typography>
+        <Typography color="text.secondary">
+          {messages.systemDescription}
+        </Typography>
+      </Box>
       <Card>
-        <CardHeader>
-          <CardTitle>Backend health</CardTitle>
-          <CardDescription>GET /api/health</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-between gap-4">
-          <div aria-live="polite">
-            {health.isPending && (
-              <span className="text-muted-foreground">Checking…</span>
-            )}
-            {health.isError && (
-              <span className="text-destructive">Unavailable</span>
-            )}
-            {health.data && (
-              <span className="inline-flex items-center gap-2 font-medium">
-                <span className="size-2 rounded-full bg-emerald-500" />
-                API status: {health.data.status}
-              </span>
-            )}
-          </div>
-          <Button variant="outline" size="sm" onClick={() => health.refetch()}>
-            <RefreshCw /> Refresh
-          </Button>
+        <CardHeader title={messages.health} subheader="GET /api/health" />
+        <CardContent>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            sx={{ alignItems: "center", justifyContent: "space-between" }}
+          >
+            <Box aria-live="polite">
+              {health.isPending && (
+                <CircularProgress size={24} aria-label={messages.checking} />
+              )}
+              {health.isError && (
+                <Alert severity="error">{messages.unavailable}</Alert>
+              )}
+              {health.data && (
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: "center" }}
+                >
+                  <CheckCircleOutline color="success" aria-hidden="true" />
+                  <Typography sx={{ fontWeight: 500 }}>
+                    {messages.apiStatus}:{" "}
+                    <Box component="span" className="technical-value">
+                      {health.data.status}
+                    </Box>
+                  </Typography>
+                </Stack>
+              )}
+            </Box>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => health.refetch()}
+              startIcon={<Refresh />}
+            >
+              {messages.refresh}
+            </Button>
+          </Stack>
         </CardContent>
       </Card>
-    </section>
+    </Stack>
   );
 }

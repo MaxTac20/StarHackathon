@@ -8,7 +8,8 @@ product does not yet need.
 
 - Python 3.14, FastAPI, Pydantic Settings, SQLAlchemy 2, psycopg, and Alembic
 - React 19, TypeScript, Vite, React Router, and TanStack Query
-- Tailwind CSS 4 and a focused set of shadcn/ui primitives
+- Material UI, MUI X, self-hosted Vazirmatn/Inter fonts, and Tailwind CSS 4 for
+  approved fallback primitives
 - Ruff, mypy, Biome, pytest, Vitest, Testing Library, and Playwright
 - PostgreSQL 18, Docker, Docker Compose, uv, and pnpm
 

@@ -1,133 +1,154 @@
-# ZarinPal analytics design system
+# ZarinPal UI design system
 
-## Direction
+## Authority and implementation
 
-The product should feel calm, precise, and operational: dense enough for payment
-analysis without resembling a raw back-office table. Use progressive disclosure—lead
-with a small set of decision-ready signals, then offer breakdowns and transaction-level
-evidence.
+Material UI (MUI) is the primary and authoritative design system.
 
-The implementation foundation is the repository's existing
-[shadcn/ui](https://ui.shadcn.com/) New York style, built on accessible
-[Radix Primitives](https://www.radix-ui.com/primitives) and Tailwind CSS semantic tokens.
-This is a source-owned design system: use existing shadcn components first, compose them
-for product patterns, and add custom primitives only when a repeated need is proven.
+- Use `@mui/material` for application UI and `@mui/icons-material` for icons.
+- Use `@mui/x-charts` for analytical visualization, `@mui/x-data-grid` for
+  data-heavy tables, and `@mui/x-date-pickers` for date and range controls.
+- `frontend/src/app/theme.ts` is the single source of truth for colors,
+  typography, spacing, shape, shadows, breakpoints, component appearance, and
+  light/dark mode.
+- Prefer theme configuration, component variants, and reusable domain
+  components before local `sx` styling. Do not hardcode a design value when a
+  theme token exists.
 
-## Experience foundations
+shadcn/ui is secondary. Use it only when MUI and MUI X have no appropriate
+component or it offers a substantial advantage. Never use shadcn alternatives
+for standardized MUI buttons, inputs, selects, dialogs, tabs, cards, tooltips,
+menus, or tables. Any retained shadcn component must be isolated and visually
+conform to the MUI theme; do not mix MUI and shadcn versions of one primitive.
 
-### Language and direction
+Before adding a primitive, check MUI, then MUI X, and only then consider shadcn
+or a custom implementation.
 
-- Default to Persian (`fa`, `dir="rtl"`); offer complete English (`en`, `dir="ltr"`).
-- Set direction at the document/app shell so layout primitives adapt naturally.
-- Use logical alignment and spacing. Do not encode “right means start” in components.
-- Place IDs, response codes, masked card values, and code snippets in isolated LTR spans.
-- Use a Persian-capable UI font such as
-  [Vazirmatn](https://github.com/rastikerdar/vazirmatn), with a tested system fallback;
-  package font assets for production instead of depending on a runtime CDN.
-- Use locale-aware number/date formatting. Keep identifiers in Latin digits to prevent
-  transcription errors; decide currency unit, timezone, and calendar only after the
-  data contract is confirmed.
+## Language and direction
 
-### Theme
+Persian (`fa-IR`) is primary: set `lang="fa"`, `dir="rtl"`, and use MUI's
+`faIR` localization where supported. English (`en`) is complete and uses
+`lang="en"`, `dir="ltr"`.
 
-Support system preference plus explicit Light, Dark, and System choices. Persist the
-choice locally without flashing the wrong theme on load. Both themes use the same
-semantic roles; theme variables change, component intent does not.
+Set direction at the document, theme, and Emotion cache levels. Use logical
+layout rather than reversing individual rows. Isolate merchant IDs,
+transaction IDs, session keys, PSP codes, masked cards, API values, and
+appropriate timestamps as LTR content, using monospace where it improves
+scanning.
 
-Current tokens live in `frontend/src/styles/globals.css`. Evolve them around these roles:
+## Typography
 
-| Role | Use |
+Self-host Vazirmatn as the primary Persian font and Inter as the English font,
+then fall back to Roboto, Arial, and sans-serif. Use only weights 400, 500, 600,
+and 700.
+
+| Role | Size | Weight | Line height |
+|---|---:|---:|---:|
+| Display / major page title | 32 px | 700 | 1.3 |
+| h1 | 28 px | 700 | 1.3 |
+| h2 | 24 px | 600 | theme default |
+| h3 | 20 px | 600 | theme default |
+| body1 | 16 px | 400 | 1.7 |
+| body2 | 14 px | 400 | 1.6 |
+| label | 14 px | 500 | theme default |
+| caption | 12 px | 400 | theme default |
+| KPI value | 28–32 px | 700 | theme default |
+
+Do not use text smaller than 12 px.
+
+## Semantic colors
+
+| Role | Light value |
 |---|---|
-| `background` / `foreground` | App canvas and primary text |
-| `card` / `card-foreground` | Panels, KPI cards, and elevated data surfaces |
-| `primary` / `primary-foreground` | Primary action and selected navigation |
-| `muted` / `muted-foreground` | Secondary surfaces, labels, and context |
-| `accent` / `accent-foreground` | Hovered or emphasized neutral content |
-| `destructive` | Errors and destructive actions, never failure-chart data by itself |
-| `border`, `input`, `ring` | Structure, controls, and keyboard focus |
+| Primary | `#2563EB` |
+| Primary dark | `#1D4ED8` |
+| Primary light | `#DBEAFE` |
+| Secondary | `#0F766E` |
+| Success | `#16A34A` |
+| Warning | `#D97706` |
+| Error | `#DC2626` |
+| Info | `#0284C7` |
+| Background | `#F8FAFC` |
+| Paper | `#FFFFFF` |
+| Primary text | `#0F172A` |
+| Secondary text | `#475569` |
+| Disabled text | `#94A3B8` |
+| Divider | `#E2E8F0` |
 
-Add chart/status tokens as semantic CSS variables before building charts (success,
-failure, warning, informational, and a categorical series palette). Never hardcode raw
-Tailwind color utilities inside product components or add manual `dark:` color fixes.
+Dark-mode values live beside these roles in the central theme. Never use
+success or error colors decoratively: green means success or positive, red
+means error/failure/negative, orange means warning, and blue means information
+or primary action.
 
-### Accessibility
+## Spacing, shape, and elevation
 
-Target WCAG 2.2 AA. Keyboard focus is always visible; icon-only actions have localized
-accessible names; touch targets are comfortable; motion respects reduced-motion
-preferences. Color is never the only carrier of status—pair it with text, shape, icon,
-or line treatment. Charts require a text summary and accessible tabular alternative.
+Use MUI's 8 px spacing unit. Prefer 4 px for very tight space, 8 px between
+related elements, 16 px within components, 24 px between groups, 32 px between
+sections, and 48 px for major page separation. Avoid arbitrary spacing.
 
-## Layout and hierarchy
+The default radius is 10 px; small controls use 8 px, cards 12 px, and large
+containers/dialogs 12–16 px. Avoid pills unless semantics require them. Favor
+borders, subtle surface differences, and whitespace over shadows. Cards
+normally have a subtle border and zero or low elevation.
 
-- Desktop uses an RTL-aware collapsible sidebar, top context bar, and bounded content
-  canvas. Mobile navigation becomes a sheet and filters become a focused drawer/sheet.
-- Use an 8 px spacing rhythm and restrained radii. Favor alignment and whitespace over
-  decorative borders.
-- Page order: title/context, global filters and freshness, primary KPIs, trend, diagnostic
-  breakdowns, then detailed records.
-- Keep the default overview to roughly 4–6 primary KPI cards. Secondary metrics belong
-  in later sections rather than a wall of equal-weight cards.
-- Sticky table headers and filter summaries are useful; horizontally scrolling the
-  entire page is not.
+## Layout and product components
 
-## Component patterns
+Main content is bounded at 1600 px. Use 24–32 px desktop padding, 20–24 px on
+tablet, and 16 px on mobile. Dashboard grids use responsive MUI Grid layouts;
+primary information must remain usable on mobile, tablet, laptop, and desktop.
 
-Use shadcn `Sidebar`, `Card`, `Chart`, `Table`, `Tabs`, `Badge`, `Tooltip`/`Popover`,
-`Sheet`, `Skeleton`, `Alert`, `Empty`, and `Separator` patterns as they are introduced.
-Cards use their full header/title/description/content/footer composition. Forms use the
-project's form primitives, and status labels use badges plus semantic tokens.
+Compose MUI primitives rather than recreating them. Add reusable domain
+components when they encode product meaning, such as `KpiCard`,
+`PaymentStatusChip`, `TransactionTable`, `PspPerformanceChart`,
+`FailureBreakdown`, and `DashboardSection`.
 
-### KPI card
+## Dashboard and analytics principles
 
-A KPI card contains a localized label, primary formatted value, comparison with explicit
-period, compact context (numerator/denominator or sample size), and a metric-definition
-action. The whole card is not clickable unless it has one unambiguous destination.
+Present information in this order:
 
-### Charts
+1. Current health/status.
+2. Primary KPIs.
+3. Trends.
+4. Problems and anomalies.
+5. Breakdown and diagnosis.
+6. Detailed transactional data.
 
-- Trends use lines/areas; composition uses bars; use pie/donut charts only for a small,
-  stable number of categories where angle comparison is not the main task.
-- Start axes at zero for bars. Do not truncate or dual-axis without an explicit warning.
-- Tooltips show the timestamp/category, exact value, population, and missing/unknown
-  count where relevant.
-- “Unknown” remains a visible neutral category. Limit ranked charts and group the tail as
-  “Other,” with full results available in a table.
-- Never use green/red alone. Series must remain distinguishable in both themes and for
-  common color-vision deficiencies.
+Every chart must answer a merchant question. Avoid filler charts, excessive
+pie charts or gradients, decorative icons, oversized KPI cards, and dashboards
+made entirely of cards. Prefer professional financial-product density.
 
-### Tables and drill-down
+Trends normally use lines/areas and composition uses bars. Use pie/donut only
+for a small stable category set. Start bar axes at zero; do not truncate or use
+dual axes without an explicit warning. Tooltips expose exact values,
+population, and unknown counts. Preserve Unknown as a neutral category and
+provide an accessible text/table alternative.
 
-Transaction tables show whether each row is a session or an attempt, retain filter
-context, support useful sorting, and provide a session-to-attempt detail view. Mask payer
-card tokens by default. Empty, loading, error, and partial-data states are designed—not
-represented by an empty rectangle.
+Every metric surface exposes its definition, version, grain, formula,
+numerator/denominator, time basis, timezone, filters, freshness, null handling,
+and a route to contributing transactions as specified in `docs/metrics.md`.
 
-### Metric explanation
+## Data formatting
 
-Every KPI/chart has a consistent explanation affordance. Use a popover for a concise
-formula and a sheet/dialog or metric-guide route for the complete contract. Include the
-metric version, grain, formula, numerator/denominator, time basis, timezone, filters,
-freshness, null handling, and “View transactions” action described in
-[docs/metrics.md](docs/metrics.md).
+Use locale-aware formatting. Persian user-facing amounts use thousands
+separators and state the confirmed unit. Percentages normally show at most one
+or two decimals. Show latency in milliseconds below 1000 ms and seconds where
+appropriate above it. Storage/API dates remain ISO/Gregorian; Persian UI may
+show Jalali only after the calendar decision is confirmed, while English uses
+Gregorian.
 
-## Content voice
+Do not present unresolved currency, timezone, calendar, or status semantics as
+facts. Keep sensitive identifiers masked and merchant scope enforced on the
+server.
 
-Use direct, neutral, non-blaming language. Prefer “Verification rate decreased by 2.1
-percentage points” over “Payments are failing badly.” Distinguish percentage points from
-percent change. Explain abbreviations on first use in each context, and never translate
-opaque PSP/bank/response codes.
+## Accessibility and review
 
-Persian is authored as product copy, not left as a late machine-translation pass. English
-and Persian messages should communicate the same action and severity even when their
-lengths differ.
+Target WCAG 2.2 AA. All interactive elements are keyboard accessible, have
+visible focus, and have accessible localized names. Do not use color as the
+only status carrier. Charts require labels/tooltips and equivalent textual
+information. Respect reduced motion.
 
-## Review checklist
+Review every user-facing slice in Persian and English, RTL and LTR, light and
+dark, and at mobile and desktop widths. Cover loading, empty, error, unknown,
+partial-data, and zero-denominator states.
 
-- Persian default, complete English, correct RTL/LTR and mixed-direction data
-- Light and dark screenshots at mobile and desktop widths
-- Semantic tokens only; sufficient contrast and visible keyboard focus
-- Metric formula, grain, filters, period, timezone, freshness, and drill-down available
-- Loading, empty, error, unknown, and zero-denominator states covered
-- Charts understandable without color and paired with accessible data
-- Sensitive identifiers masked and merchant scope enforced server-side
-- Components composed from the existing shadcn foundation before custom UI is added
+Do not add colors, fonts, spacing scales, radii, or component libraries without
+updating this contract and `frontend/src/app/theme.ts`.

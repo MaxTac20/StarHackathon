@@ -1,65 +1,84 @@
-import { ArrowRight, Boxes, Route, Server } from "lucide-react";
-import { Link } from "react-router";
-import { Button } from "@/components/ui/button";
+import ArrowForward from "@mui/icons-material/ArrowForward";
+import BarChartOutlined from "@mui/icons-material/BarChartOutlined";
+import HealthAndSafetyOutlined from "@mui/icons-material/HealthAndSafetyOutlined";
+import QueryStatsOutlined from "@mui/icons-material/QueryStatsOutlined";
 import {
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-
-const capabilities = [
-  [
-    Server,
-    "One production app",
-    "FastAPI serves the API and the compiled React application.",
-  ],
-  [
-    Route,
-    "Same-origin API",
-    "Relative /api URLs work in development and production.",
-  ],
-  [
-    Boxes,
-    "Small by design",
-    "Clear extension points without speculative abstraction layers.",
-  ],
-] as const;
+  Grid,
+  Stack,
+  Typography,
+} from "@mui/material";
+import { Link } from "react-router";
+import { useLocale } from "@/app/i18n";
 
 export function HomePage() {
+  const { messages } = useLocale();
+  const capabilities = [
+    [HealthAndSafetyOutlined, messages.health, messages.healthDescription],
+    [BarChartOutlined, messages.kpis, messages.kpisDescription],
+    [QueryStatsOutlined, messages.trends, messages.trendsDescription],
+  ] as const;
+
   return (
-    <div className="space-y-12">
-      <section className="max-w-3xl space-y-6">
-        <p className="text-sm font-medium text-primary">
-          FastAPI + React + PostgreSQL
-        </p>
-        <h1 className="text-4xl font-semibold tracking-tight sm:text-6xl">
-          Start building the product, not the scaffolding.
-        </h1>
-        <p className="max-w-2xl text-lg leading-8 text-muted-foreground">
-          A deliberately boring full-stack baseline for hackathons, MVPs, and
-          real applications.
-        </p>
-        <Button asChild>
-          <Link to="/example">
-            Try the API example <ArrowRight />
-          </Link>
-        </Button>
-      </section>
-      <section className="grid gap-4 md:grid-cols-3">
+    <Stack spacing={{ xs: 4, md: 6 }}>
+      <Stack component="section" spacing={3} sx={{ maxWidth: 880 }}>
+        <Typography variant="body2" color="primary" sx={{ fontWeight: 600 }}>
+          {messages.pageEyebrow}
+        </Typography>
+        <Typography
+          component="h1"
+          sx={{
+            fontSize: { xs: 28, md: 32 },
+            fontWeight: 700,
+            lineHeight: 1.3,
+          }}
+        >
+          {messages.pageTitle}
+        </Typography>
+        <Typography color="text.secondary" sx={{ maxWidth: 720 }}>
+          {messages.pageDescription}
+        </Typography>
+        <Box>
+          <Button
+            component={Link}
+            to="/example"
+            variant="contained"
+            endIcon={<ArrowForward />}
+          >
+            {messages.primaryAction}
+          </Button>
+        </Box>
+      </Stack>
+
+      <Alert severity="info" variant="outlined">
+        <AlertTitle>{messages.foundationStatus}</AlertTitle>
+        {messages.foundationMessage}
+      </Alert>
+
+      <Grid component="section" container spacing={2}>
         {capabilities.map(([Icon, title, description]) => (
-          <Card key={title}>
-            <CardHeader>
-              <Icon className="size-5 text-primary" />
-              <CardTitle>{title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription>{description}</CardDescription>
-            </CardContent>
-          </Card>
+          <Grid key={title} size={{ xs: 12, md: 4 }}>
+            <Card sx={{ height: "100%" }}>
+              <CardContent>
+                <Stack spacing={2}>
+                  <Icon color="primary" aria-hidden="true" />
+                  <Typography component="h2" variant="h3">
+                    {title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {description}
+                  </Typography>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
         ))}
-      </section>
-    </div>
+      </Grid>
+    </Stack>
   );
 }

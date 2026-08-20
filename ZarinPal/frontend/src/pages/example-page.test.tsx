@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
+import { LocaleProvider } from "@/app/i18n";
 import { ExamplePage } from "@/pages/example-page";
 
 beforeEach(() => {
@@ -21,9 +22,11 @@ test("renders the backend health response", async () => {
   });
   render(
     <QueryClientProvider client={client}>
-      <ExamplePage />
+      <LocaleProvider>
+        <ExamplePage />
+      </LocaleProvider>
     </QueryClientProvider>,
   );
-  expect(await screen.findByText("API status: ok")).toBeInTheDocument();
+  expect(await screen.findByText(/وضعیت API/)).toBeInTheDocument();
   expect(fetch).toHaveBeenCalledWith("/api/health", expect.any(Object));
 });
