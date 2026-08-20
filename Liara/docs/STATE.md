@@ -13,8 +13,10 @@ passed the verification gate in `../AGENTS.md`.
 
 ## Where we are
 
-Scaffolding, design, and the first cited conversational surface are complete. Retrieval
-and the remaining product lanes are still separate follow-up work.
+Scaffolding, ingestion, retrieval, and the conversational surface are integrated on
+`main`. The real grounded answer engine is now being built on `codex/liara-answer`;
+the current chat implementation is still the deterministic UI stub until that work
+passes its behavioral and live-corpus gates.
 
 **Working locally.** Liara credits have not been released, so checkpoint 0 — deploying a
 hello-world to de-risk the 40 deployment points on day one — cannot run yet. This is the
@@ -148,6 +150,12 @@ for review. It deliberately remains unmerged.
 ## In progress
 
 Nothing.
+`codex/liara-answer` owns answer quality end to end: follow-up-aware retrieval, bounded
+grounded context, `openai/gpt-5.6-luna` streaming, server-enforced citation integrity,
+refusal, defect disclosure, prompt-cache ordering, safe usage telemetry, and live
+Persian/English evaluation. The live PostgreSQL on port **5444** currently contains
+5,255 rows, of which five have embeddings; this differs from the handoff's earlier
+5,250/zero snapshot and must be reconciled before the one permitted full embedding run.
 
 ## Corpus snapshot
 
