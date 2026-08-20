@@ -49,8 +49,10 @@ translations. Codes such as `PSP-05`, bank codes, masked cards, and transaction 
 LTR inside either locale.
 
 Dates, numbers, and currency use locale-aware formatting without changing stored values.
-The timestamp timezone, amount unit, and whether Persian views should default to the
-Solar Hijri calendar are product decisions still requiring confirmation.
+All monetary columns in the supplied CSV, including `amount` and `adjusted_fee`, are
+denominated in Iranian rials (`ریال`). The timestamp timezone and whether Persian views
+should default to the Solar Hijri calendar are product decisions still requiring
+confirmation.
 
 ### Theme parity
 

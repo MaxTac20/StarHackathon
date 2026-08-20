@@ -34,7 +34,8 @@ must rely on an explicit merchant-terminal relationship rather than this observa
 ## Column dictionary
 
 Meanings below are either directly observable or conservative interpretations of field
-names. Items marked “confirm” require source-system documentation.
+names. Items marked “confirm” require source-system documentation. All monetary columns
+in the supplied CSV are denominated in Iranian rials (`ریال`).
 
 | Column | Observed shape | Working interpretation |
 |---|---|---|
@@ -44,8 +45,8 @@ names. Items marked “confirm” require source-system documentation.
 | `merchant_key` | Token such as `M145` | Merchant identifier and required data-isolation scope |
 | `category_id` | 8-digit code | Merchant category identifier |
 | `category_title` | Persian text | Merchant category display label |
-| `amount` | Integer, 1,000–2,000,000,000 | Requested payment amount; unit/currency must be confirmed |
-| `adjusted_fee` | Integer, 1,920–284,800 | Adjusted fee; charging semantics and unit must be confirmed |
+| `amount` | Integer, 1,000–2,000,000,000 | Requested payment amount in Iranian rials (`ریال`) |
+| `adjusted_fee` | Integer, 1,920–284,800 | Adjusted fee in Iranian rials (`ریال`); charging semantics must be confirmed |
 | `session_status` | Enum-like text | Session outcome: `Failed`, `Verified`, `Paid`, or `Reversed` |
 | `try_status` | Enum-like text | Try state: `NoAttempt`, `InBank`, `Failed`, `Verified`, `Paid`, or `Reversed` |
 | `switch_response_code` | Usually `<PSP>:<code>` | PSP/switch response; code catalog and null meaning must be confirmed |

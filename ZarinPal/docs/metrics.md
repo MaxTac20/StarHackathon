@@ -21,11 +21,11 @@ The CSV is attempt-grained: `session_key` repeats when a payment session is retr
 |---|---|---|---|---|
 | `sessions.created` | Payment sessions | Session | `count(distinct session_key)` created in range | Time basis: `created_at` |
 | `attempts.processed` | PSP attempts | Attempt | Count rows where `try_seq >= 1` | Excludes `NoAttempt` rows |
-| `amount.requested` | Requested amount | Session | Sum one `amount` per distinct session | Currency/unit is unresolved |
+| `amount.requested` | Requested amount | Session | Sum one `amount` per distinct session | Denominated in Iranian rials (`ریال`) |
 | `sessions.verified_rate` | Verification rate | Session | Sessions with successful final verification / created sessions | **Proposed:** successful final statuses are `Verified` and `Paid`; confirm `Reversed` handling |
 | `sessions.failed_rate` | Failure rate | Session | Sessions with final `session_status = Failed` / created sessions | Preserve no-attempt failures in denominator |
 | `sessions.settled_rate` | Settlement rate | Session | Sessions with non-null `settled_at` / settlement-eligible sessions | Eligibility and reporting time basis need domain confirmation |
-| `fees.adjusted` | Adjusted fees | Session | Sum one `adjusted_fee` per distinct eligible session | Confirm whether failed/unsettled fees are charged and whether fee repeats per retry |
+| `fees.adjusted` | Adjusted fees | Session | Sum one `adjusted_fee` per distinct eligible session | Denominated in Iranian rials (`ریال`); confirm whether failed/unsettled fees are charged and whether fee repeats per retry |
 | `latency.init` | Initialization latency | Attempt | Median and p95 of non-null `init_time_ms` | Show sample count and missing rate |
 | `latency.verify` | Verification latency | Attempt | Median and p95 of non-null `verify_time_ms` | Show sample count and missing rate |
 | `sessions.retry_rate` | Retry rate | Session | Sessions whose maximum `try_seq > 1` / sessions with at least one PSP attempt | Excludes `NoAttempt`; confirm retry semantics |
@@ -73,12 +73,11 @@ metric ID/version and enough metadata for the frontend explanation panel.
 
 ## Open domain questions
 
-1. What unit and currency do `amount` and `adjusted_fee` use?
-2. What timezone applies to the naive timestamps?
-3. Which statuses constitute business success, and how should `Paid` and `Reversed` be
+1. What timezone applies to the naive timestamps?
+2. Which statuses constitute business success, and how should `Paid` and `Reversed` be
    handled?
-4. Is `settled_at` the authoritative settlement signal, and which sessions are eligible?
-5. Is `adjusted_fee` charged per session, per successful payment, or per try?
-6. What exactly do `init_time_ms` and `verify_time_ms` measure?
-7. Does `switch_response_code` encode `<psp>:<code>` in every valid non-null case, and is
+3. Is `settled_at` the authoritative settlement signal, and which sessions are eligible?
+4. Is `adjusted_fee` charged per session, per successful payment, or per try?
+5. What exactly do `init_time_ms` and `verify_time_ms` measure?
+6. Does `switch_response_code` encode `<psp>:<code>` in every valid non-null case, and is
    there an official response-code catalog?

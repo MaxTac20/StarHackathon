@@ -128,16 +128,15 @@ and a route to contributing transactions as specified in `docs/metrics.md`.
 
 ## Data formatting
 
-Use locale-aware formatting. Persian user-facing amounts use thousands
-separators and state the confirmed unit. Percentages normally show at most one
-or two decimals. Show latency in milliseconds below 1000 ms and seconds where
-appropriate above it. Storage/API dates remain ISO/Gregorian; Persian UI may
-show Jalali only after the calendar decision is confirmed, while English uses
-Gregorian.
+Use locale-aware formatting. Every monetary column in the supplied CSV is denominated
+in Iranian rials (`ریال`). Persian user-facing amounts use thousands separators and
+display that unit. Percentages normally show at most one or two decimals. Show latency
+in milliseconds below 1000 ms and seconds where appropriate above it. Storage/API dates
+remain ISO/Gregorian; Persian UI may show Jalali only after the calendar decision is
+confirmed, while English uses Gregorian.
 
-Do not present unresolved currency, timezone, calendar, or status semantics as
-facts. Keep sensitive identifiers masked and merchant scope enforced on the
-server.
+Do not present unresolved timezone, calendar, or status semantics as facts. Keep
+sensitive identifiers masked and merchant scope enforced on the server.
 
 ## Accessibility and review
 
