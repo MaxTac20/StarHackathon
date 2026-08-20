@@ -11,6 +11,7 @@ import { HomePage } from "@/pages/home-page";
 import { LoginPage } from "@/pages/login-page";
 import { MerchantSelectionPage } from "@/pages/merchant-selection-page";
 import { NotFoundPage } from "@/pages/not-found-page";
+import { TransactionsPage } from "@/pages/transactions-page";
 
 export const router = createBrowserRouter([
   { path: "/", Component: EntryRedirect },
@@ -28,7 +29,10 @@ export const router = createBrowserRouter([
           { path: "/example", Component: ExamplePage },
           {
             Component: RequireMerchant,
-            children: [{ path: "/dashboard", Component: HomePage }],
+            children: [
+              { path: "/dashboard", Component: HomePage },
+              { path: "/transactions", Component: TransactionsPage },
+            ],
           },
           { path: "*", Component: NotFoundPage },
         ],

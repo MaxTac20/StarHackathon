@@ -29,7 +29,9 @@ The CSV is attempt-grained: `session_key` repeats when a payment session is retr
 | `latency.init` | Initialization latency | Attempt | Median and p95 of non-null `init_time_ms` | Show sample count and missing rate |
 | `latency.verify` | Verification latency | Attempt | Median and p95 of non-null `verify_time_ms` | Show sample count and missing rate |
 | `sessions.retry_rate` | Retry rate | Session | Sessions whose maximum `try_seq > 1` / sessions with at least one PSP attempt | Excludes `NoAttempt`; confirm retry semantics |
+| `sessions.no_attempt_rate` | No-attempt rate | Session | Sessions with no eligible PSP attempt / created sessions | A `try_seq = 0` / `NoAttempt` row is observed evidence; it does not establish root cause |
 | `failures.by_code` | Failure-code distribution | Attempt | Failed eligible attempts grouped by `switch_response_code` | Include unavailable code; display numerator and population |
+| `benchmarks.category_equal_weighted` | Anonymous category benchmark | Merchant | Median and IQR of eligible same-category merchants, one vote per merchant | Excludes selected merchant; requires 30 observations per peer and 10 peers; suppressed for terminal filters |
 
 “Final status” means the session-level value after applying a documented deterministic
 selection rule. Current data appears to repeat `session_status` across a session's rows,

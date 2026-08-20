@@ -123,10 +123,273 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/dashboard/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview */
+        get: operations["overview_api_dashboard_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dashboard/benchmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Benchmarks */
+        get: operations["benchmarks_api_dashboard_benchmarks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Transactions */
+        get: operations["transactions_api_transactions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transactions/{session_key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Transaction Detail */
+        get: operations["transaction_detail_api_transactions__session_key__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Metrics */
+        get: operations["metrics_api_metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnalyticsScope */
+        AnalyticsScope: {
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /**
+             * Previous Start
+             * Format: date
+             */
+            previous_start: string;
+            /**
+             * Previous End
+             * Format: date
+             */
+            previous_end: string;
+            /** Terminal Key */
+            terminal_key?: string | null;
+            /**
+             * Time Field
+             * @default created_at
+             */
+            time_field: string;
+            /**
+             * Timezone
+             * @default Asia/Tehran
+             */
+            timezone: string;
+            /**
+             * Interval
+             * @default half-open
+             */
+            interval: string;
+            /**
+             * Refreshed At
+             * Format: date-time
+             */
+            refreshed_at: string;
+            /**
+             * Latest Data At
+             * Format: date-time
+             */
+            latest_data_at: string;
+        };
+        /** AttemptDetail */
+        AttemptDetail: {
+            /** Try Seq */
+            try_seq: number;
+            /** Try Status */
+            try_status: string;
+            /** Switch Response Code */
+            switch_response_code: string | null;
+            /** Psp Code */
+            psp_code: string | null;
+            /** Issuer Bank Code */
+            issuer_bank_code: string | null;
+            /** Init Time Ms */
+            init_time_ms: number | null;
+            /** Verify Time Ms */
+            verify_time_ms: number | null;
+            /** Try Created At */
+            try_created_at: string | null;
+            /** Verified At */
+            verified_at: string | null;
+            /** Settled At */
+            settled_at: string | null;
+        };
+        /** BenchmarkMetric */
+        BenchmarkMetric: {
+            /** Metric Id */
+            metric_id: string;
+            /** Selected Value */
+            selected_value: number | null;
+            /** Median */
+            median: number | null;
+            /** Q1 */
+            q1: number | null;
+            /** Q3 */
+            q3: number | null;
+            /** Percentile */
+            percentile: number | null;
+            /** Cohort Size */
+            cohort_size: number;
+            /** Direction */
+            direction: string;
+        };
+        /** BenchmarkResponse */
+        BenchmarkResponse: {
+            /** Suppressed */
+            suppressed: boolean;
+            /** Suppression Reason */
+            suppression_reason?: string | null;
+            /** Category Id */
+            category_id: string | null;
+            /**
+             * Min Peer Observations
+             * @default 30
+             */
+            min_peer_observations: number;
+            /**
+             * Min Cohort Size
+             * @default 10
+             */
+            min_cohort_size: number;
+            scope: components["schemas"]["AnalyticsScope"];
+            /** Metrics */
+            metrics: components["schemas"]["BenchmarkMetric"][];
+            /**
+             * Signal
+             * @default neutral
+             */
+            signal: string;
+        };
+        /** DailyStatus */
+        DailyStatus: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Failed
+             * @default 0
+             */
+            Failed: number;
+            /**
+             * Verified
+             * @default 0
+             */
+            Verified: number;
+            /**
+             * Paid
+             * @default 0
+             */
+            Paid: number;
+            /**
+             * Reversed
+             * @default 0
+             */
+            Reversed: number;
+        };
+        /** DashboardOverview */
+        DashboardOverview: {
+            /** Merchant Key */
+            merchant_key: string;
+            /** Category Id */
+            category_id: string | null;
+            /** Category Title Fa */
+            category_title_fa: string | null;
+            /** Terminals */
+            terminals: string[];
+            scope: components["schemas"]["AnalyticsScope"];
+            /** Metrics */
+            metrics: components["schemas"]["MetricValue"][];
+            /** Daily Status */
+            daily_status: components["schemas"]["DailyStatus"][];
+            failure_contribution: components["schemas"]["FailureContribution"];
+            /** Psp Outcomes */
+            psp_outcomes: components["schemas"]["PspOutcome"][];
+            /** Latency */
+            latency: components["schemas"]["LatencyBucket"][];
+            insight: components["schemas"]["InsightEvidence"];
+        };
+        /** FailureContribution */
+        FailureContribution: {
+            /** No Attempt */
+            no_attempt: number;
+            /** Attempted */
+            attempted: number;
+            /** Total Failed */
+            total_failed: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -140,6 +403,44 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /** InsightEvidence */
+        InsightEvidence: {
+            /** Kind */
+            kind: string;
+            /** Severity */
+            severity: string;
+            /** Current Rate */
+            current_rate: number | null;
+            /** Previous Rate */
+            previous_rate: number | null;
+            /** Change Percentage Points */
+            change_percentage_points: number | null;
+            /** Excess Sessions */
+            excess_sessions: number;
+            /** Affected Amount */
+            affected_amount: number;
+            /** Drilldown Query */
+            drilldown_query: string;
+            /** Limitations */
+            limitations: string[];
+        };
+        /** LatencyBucket */
+        LatencyBucket: {
+            /** Psp Code */
+            psp_code: string | null;
+            /** Sample Size */
+            sample_size: number;
+            /** Missing Count */
+            missing_count: number;
+            /** Init Median Ms */
+            init_median_ms: number | null;
+            /** Init P95 Ms */
+            init_p95_ms: number | null;
+            /** Previous Init Median Ms */
+            previous_init_median_ms: number | null;
+            /** Previous Init P95 Ms */
+            previous_init_p95_ms: number | null;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -191,6 +492,84 @@ export interface components {
             /** Latest Session At */
             latest_session_at: string | null;
         };
+        /** MetricContract */
+        MetricContract: {
+            /** Metric Id */
+            metric_id: string;
+            /**
+             * Version
+             * @default 1.0.0
+             */
+            version: string;
+            /** Grain */
+            grain: string;
+            /** Formula */
+            formula: string;
+            /** Time Field */
+            time_field: string;
+            /**
+             * Proposed
+             * @default false
+             */
+            proposed: boolean;
+            /** Limitations */
+            limitations?: string[];
+        };
+        /** MetricRegistryResponse */
+        MetricRegistryResponse: {
+            /** Version */
+            version: string;
+            /** Metrics */
+            metrics: components["schemas"]["MetricContract"][];
+        };
+        /** MetricValue */
+        MetricValue: {
+            /** Metric Id */
+            metric_id: string;
+            /**
+             * Version
+             * @default 1.0.0
+             */
+            version: string;
+            /** Grain */
+            grain: string;
+            /** Value */
+            value: number | null;
+            /** Numerator */
+            numerator?: number | null;
+            /** Denominator */
+            denominator?: number | null;
+            /** Sample Size */
+            sample_size: number;
+            /**
+             * Missing Count
+             * @default 0
+             */
+            missing_count: number;
+            /** Previous Value */
+            previous_value?: number | null;
+            /** Change */
+            change?: number | null;
+            /** Limitations */
+            limitations?: string[];
+        };
+        /** PspOutcome */
+        PspOutcome: {
+            /** Psp Code */
+            psp_code: string | null;
+            /** Sample Size */
+            sample_size: number;
+            /** Failed */
+            failed: number;
+            /** Verified */
+            verified: number;
+            /** Paid */
+            paid: number;
+            /** Reversed */
+            reversed: number;
+            /** In Bank */
+            in_bank: number;
+        };
         /** ReadyResponse */
         ReadyResponse: {
             /**
@@ -224,6 +603,60 @@ export interface components {
          * @enum {string}
          */
         SortDirection: "asc" | "desc";
+        /** TransactionDetail */
+        TransactionDetail: {
+            session: components["schemas"]["TransactionSummary"];
+            /** Verify Type */
+            verify_type: string;
+            /** Adjusted Fee */
+            adjusted_fee: number;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Attempts */
+            attempts: components["schemas"]["AttemptDetail"][];
+        };
+        /** TransactionListResponse */
+        TransactionListResponse: {
+            /** Items */
+            items: components["schemas"]["TransactionSummary"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            scope: components["schemas"]["AnalyticsScope"];
+        };
+        /**
+         * TransactionSort
+         * @enum {string}
+         */
+        TransactionSort: "created_at" | "amount" | "session_status";
+        /** TransactionSummary */
+        TransactionSummary: {
+            /** Session Key */
+            session_key: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Terminal Key */
+            terminal_key: string;
+            /** Amount */
+            amount: number;
+            /** Session Status */
+            session_status: string;
+            /** Attempt Count */
+            attempt_count: number;
+            /** Last Psp */
+            last_psp: string | null;
+            /** No Attempt */
+            no_attempt: boolean;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -422,6 +855,164 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    overview_api_dashboard_overview_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+                terminal_key?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardOverview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    benchmarks_api_dashboard_benchmarks_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+                terminal_key?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenchmarkResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transactions_api_transactions_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+                terminal_key?: string | null;
+                status?: string | null;
+                no_attempt?: boolean | null;
+                psp?: string | null;
+                attempt_status?: string | null;
+                page?: number;
+                page_size?: number;
+                sort?: components["schemas"]["TransactionSort"];
+                direction?: components["schemas"]["SortDirection"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transaction_detail_api_transactions__session_key__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    metrics_api_metrics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricRegistryResponse"];
                 };
             };
         };
