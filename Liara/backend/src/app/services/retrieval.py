@@ -17,6 +17,49 @@ DEFAULT_RRF_K = 60
 DEFAULT_DENSE_WEIGHT = 0.7
 DEFAULT_LEXICAL_WEIGHT = 0.3
 
+# ``simple`` deliberately has no stopword dictionary, so remove only a small,
+# explicit set of Persian function words from queries. The index stays lossless.
+_PERSIAN_FUNCTION_WORDS = frozenset(
+    {
+        "از",
+        "اگر",
+        "اما",
+        "ان",
+        "این",
+        "با",
+        "بر",
+        "برای",
+        "به",
+        "بود",
+        "تا",
+        "چه",
+        "چرا",
+        "چطور",
+        "چگونه",
+        "در",
+        "را",
+        "روی",
+        "شد",
+        "شده",
+        "شما",
+        "شود",
+        "کجا",
+        "کدام",
+        "که",
+        "ما",
+        "من",
+        "می",
+        "و",
+        "یا",
+        "یک",
+        "است",
+        "باشد",
+        "هست",
+        "هستند",
+    }
+)
+_QUERY_EDGE_PUNCTUATION = "!\"'(),.:;<>?[\\]{}،؛؟«»…"
+
 
 @dataclass(frozen=True)
 class RankedChunk:
@@ -65,7 +108,9 @@ async def retrieve(
     query_embedding_batch = await embedding_client.embed_texts(variants)
     embeddings = [item.embedding for item in query_embedding_batch.items]
     dense = await dense_search(session, embeddings, limit=candidates_per_leg)
-    lexical = await lexical_search(session, variants, limit=candidates_per_leg)
+    # text_norm always strips ZWNJ, so only the first (stripped) variant can
+    # match the lexical index. Dense retrieval still embeds both surface forms.
+    lexical = await lexical_search(session, variants[0], limit=candidates_per_leg)
     results = reciprocal_rank_fusion(dense, lexical, top_k=top_k)
     return RetrievalRun(
         query_variants=variants,
@@ -106,25 +151,13 @@ async def dense_search(
 
 async def lexical_search(
     session: AsyncSession,
-    variants: list[str],
+    query_text: str,
     *,
     limit: int,
 ) -> list[RankedChunk]:
-    best_by_id: dict[str, RankedChunk] = {}
-
-    for variant in variants:
-        statement = _lexical_statement(variant, limit=limit)
-        rows = (await session.execute(statement)).all()
-        for chunk, score in rows:
-            candidate = _ranked_chunk(chunk, float(score))
-            existing = best_by_id.get(candidate.id)
-            if existing is None or candidate.leg_score > existing.leg_score:
-                best_by_id[candidate.id] = candidate
-
-    candidate_budget = limit * len(variants)
-    return sorted(best_by_id.values(), key=lambda item: (-item.leg_score, item.id))[
-        :candidate_budget
-    ]
+    statement = _lexical_statement(query_text, limit=limit)
+    rows = (await session.execute(statement)).all()
+    return [_ranked_chunk(chunk, float(score)) for chunk, score in rows]
 
 
 def _lexical_statement(variant: str, *, limit: int) -> Select[tuple[DocumentChunk, float]]:
@@ -142,7 +175,12 @@ def _lexical_statement(variant: str, *, limit: int) -> Select[tuple[DocumentChun
 
 
 def _or_query_terms(variant: str) -> str:
-    return " OR ".join(variant.split())
+    content_terms: list[str] = []
+    for term in variant.split():
+        comparison_term = term.strip(_QUERY_EDGE_PUNCTUATION)
+        if comparison_term and comparison_term not in _PERSIAN_FUNCTION_WORDS:
+            content_terms.append(term)
+    return " OR ".join(content_terms)
 
 
 def reciprocal_rank_fusion(

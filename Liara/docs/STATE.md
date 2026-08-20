@@ -87,7 +87,9 @@ record why.
       words are now filtered (`را` alone matched 5 of 6 chunks, and `simple` has no
       stopword list by design), and only the ZWNJ-stripped variant reaches the lexical leg
       — Postgres keeps ZWNJ inside the lexeme, so the preserved variant could never match
-      the stripped index. Both were measured against a live database, not inferred.
+      the stripped index. Both were measured against a live database, not inferred. The
+      index stays lossless; a 12-decoy PostgreSQL flooding regression and an adversarial
+      top-three RRF test cover both.
 
 ## In progress
 

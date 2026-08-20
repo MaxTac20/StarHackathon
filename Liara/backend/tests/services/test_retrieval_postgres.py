@@ -4,13 +4,13 @@ import os
 import httpx
 import pytest
 from pydantic import SecretStr
-from sqlalchemy import delete, select
+from sqlalchemy import Text, cast, delete, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.models.document_chunk import EMBEDDING_DIMENSIONS, DocumentChunk
 from app.services.corpus import embed_unembedded_chunks
 from app.services.embeddings import EMBEDDING_MODEL, OpenRouterEmbeddingClient
-from app.services.retrieval import dense_search, lexical_search
+from app.services.retrieval import _or_query_terms, dense_search, lexical_search
 from app.utils.persian import ZWNJ, query_variants
 
 DATABASE_URL = os.getenv("RETRIEVAL_TEST_DATABASE_URL")
@@ -34,6 +34,24 @@ async def test_postgres_lexical_fallback_and_zwnj_dense_variants() -> None:
     session = AsyncSession(bind=connection, expire_on_commit=False)
     try:
         await session.execute(delete(DocumentChunk))
+        stopword_decoys = [
+            DocumentChunk(
+                id=f"test:stopword-decoy-{index}",
+                path=f"test/stopword-decoy-{index}",
+                url=f"https://docs.liara.ir/test/stopword-decoy-{index}/",
+                anchor=None,
+                cite_url=f"https://docs.liara.ir/test/stopword-decoy-{index}/",
+                heading_path=["متن نامرتبط"],
+                lang="fa",
+                text="را از در که به و",
+                text_norm="را از در که به و",
+                code_blocks=[],
+                token_estimate=6,
+                source_commit="test",
+                embedding=_unit_vector(10 + index),
+            )
+            for index in range(12)
+        ]
         session.add_all(
             [
                 DocumentChunk(
@@ -96,6 +114,7 @@ async def test_postgres_lexical_fallback_and_zwnj_dense_variants() -> None:
                     source_commit="test",
                     embedding=None,
                 ),
+                *stopword_decoys,
             ]
         )
         await session.flush()
@@ -103,11 +122,24 @@ async def test_postgres_lexical_fallback_and_zwnj_dense_variants() -> None:
         dense = await dense_search(session, [_unit_vector(0)], limit=1)
         lexical = await lexical_search(
             session,
-            query_variants(f"پشتیبان{ZWNJ}گیری"),
-            limit=5,
+            query_variants(f"چطور از PostgreSQL پشتیبان{ZWNJ}گیری کنم؟")[0],
+            limit=20,
         )
         assert [chunk.id for chunk in dense] == ["test:unrelated"]
-        assert "test:backup" in {chunk.id for chunk in lexical}
+        assert [chunk.id for chunk in lexical] == ["test:backup"]
+
+        generated_tsquery = await session.scalar(
+            select(
+                cast(
+                    func.websearch_to_tsquery(
+                        literal_column("'simple'"),
+                        _or_query_terms("چطور پشتیبانگیری را از کجا انجام دهم"),
+                    ),
+                    Text,
+                )
+            )
+        )
+        assert generated_tsquery == "'پشتیبانگیری' | 'انجام' | 'دهم'"
 
         variants = query_variants(f"اضافه{ZWNJ}کردن")
         assert len(variants) == 2
