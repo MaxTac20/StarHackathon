@@ -1,6 +1,10 @@
-import type { BundledLanguage, HighlightResult } from "streamdown";
+import type { BundledLanguage } from "streamdown";
 import { describe, expect, it } from "vitest";
 import { limitedCodeHighlighter } from "./code-highlighter";
+
+type HighlightResult = NonNullable<
+  ReturnType<typeof limitedCodeHighlighter.highlight>
+>;
 
 const highlight = (language: string, code: string): Promise<HighlightResult> =>
   new Promise((resolve) => {
