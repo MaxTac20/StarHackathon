@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from time import monotonic
+from typing import Literal
 
 import httpx
 from pydantic import SecretStr, ValidationError
@@ -15,7 +17,9 @@ from app.models.document_chunk import EMBEDDING_DIMENSIONS
 from app.schemas.embedding import EmbeddingResponse
 
 OPENROUTER_EMBEDDINGS_URL = "https://openrouter.ai/api/v1/embeddings"
+OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 EMBEDDING_MODEL = "qwen/qwen3-embedding-8b"
+CHAT_MODEL = "openai/gpt-5.6-luna"
 DEFAULT_BATCH_SIZE = 32
 TRANSIENT_STATUS_CODES = {429, 500, 502, 503, 524, 529}
 
@@ -24,6 +28,10 @@ Sleep = Callable[[float], Awaitable[None]]
 
 class EmbeddingError(RuntimeError):
     """A safe embedding error that never contains provider payloads or credentials."""
+
+
+class GenerationError(RuntimeError):
+    """A safe generation error that never contains provider payloads or credentials."""
 
 
 @dataclass(frozen=True)
@@ -47,7 +55,26 @@ class EmbeddingBatch:
     request_count: int = 1
 
 
-class OpenRouterEmbeddingClient:
+@dataclass(frozen=True)
+class ChatUsage:
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    cache_read_input_tokens: int = 0
+    cache_write_input_tokens: int = 0
+    reasoning_tokens: int = 0
+    provider_cost_usd: float | None = None
+
+
+@dataclass(frozen=True)
+class ChatStreamEvent:
+    kind: Literal["reasoning", "content", "usage", "finish"]
+    text: str = ""
+    usage: ChatUsage | None = None
+    finish_reason: str | None = None
+
+
+class OpenRouterClient:
     def __init__(
         self,
         api_key: SecretStr,
@@ -81,7 +108,7 @@ class OpenRouterEmbeddingClient:
         batch_size: int = DEFAULT_BATCH_SIZE,
         max_attempts: int = 4,
         sleep: Sleep = asyncio.sleep,
-    ) -> OpenRouterEmbeddingClient:
+    ) -> OpenRouterClient:
         resolved_settings = settings or get_settings()
         api_key = resolved_settings.openrouter_api_key
         if api_key is None or not api_key.get_secret_value():
@@ -94,7 +121,7 @@ class OpenRouterEmbeddingClient:
             sleep=sleep,
         )
 
-    async def __aenter__(self) -> OpenRouterEmbeddingClient:
+    async def __aenter__(self) -> OpenRouterClient:
         return self
 
     async def __aexit__(
@@ -192,6 +219,83 @@ class OpenRouterEmbeddingClient:
 
         raise last_error  # pragma: no cover
 
+    async def stream_chat(
+        self,
+        *,
+        system_prompt: str,
+        messages: Sequence[dict[str, object]],
+        model: str = CHAT_MODEL,
+        reasoning_effort: str = "high",
+        max_tokens: int = 3000,
+    ) -> AsyncIterator[ChatStreamEvent]:
+        payload = chat_request_payload(
+            system_prompt=system_prompt,
+            messages=messages,
+            model=model,
+            reasoning_effort=reasoning_effort,
+            max_tokens=max_tokens,
+        )
+        try:
+            async with self._http_client.stream(
+                "POST",
+                OPENROUTER_CHAT_URL,
+                headers={"Authorization": self._authorization_header},
+                json=payload,
+                timeout=httpx.Timeout(180.0),
+            ) as response:
+                if not response.is_success:
+                    raise GenerationError(
+                        f"OpenRouter generation request failed with status {response.status_code}"
+                    )
+
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line.removeprefix("data:").strip()
+                    if not data or data == "[DONE]":
+                        continue
+                    try:
+                        event = json.loads(data)
+                    except json.JSONDecodeError as exc:
+                        raise GenerationError(
+                            "OpenRouter returned an invalid generation stream"
+                        ) from exc
+                    if not isinstance(event, dict) or event.get("error") is not None:
+                        raise GenerationError("OpenRouter generation request failed")
+
+                    usage = _chat_usage(event.get("usage"))
+                    if usage is not None:
+                        yield ChatStreamEvent(kind="usage", usage=usage)
+
+                    choices = event.get("choices")
+                    if not isinstance(choices, list) or not choices:
+                        continue
+                    choice = choices[0]
+                    if not isinstance(choice, dict):
+                        continue
+                    delta = choice.get("delta")
+                    if isinstance(delta, dict):
+                        reasoning = _stream_text(delta.get("reasoning"))
+                        if not reasoning:
+                            reasoning = _stream_text(delta.get("reasoning_content"))
+                        if reasoning:
+                            yield ChatStreamEvent(kind="reasoning", text=reasoning)
+
+                        content = _stream_text(delta.get("content"))
+                        if content:
+                            yield ChatStreamEvent(kind="content", text=content)
+
+                    finish_reason = choice.get("finish_reason")
+                    if isinstance(finish_reason, str):
+                        yield ChatStreamEvent(
+                            kind="finish",
+                            finish_reason=finish_reason,
+                        )
+        except GenerationError:
+            raise
+        except httpx.HTTPError as exc:
+            raise GenerationError("OpenRouter generation request failed") from exc
+
     @staticmethod
     def _validated_items(
         response: EmbeddingResponse,
@@ -210,6 +314,70 @@ class OpenRouterEmbeddingClient:
             EmbeddedItem(key=inputs[datum.index].key, embedding=datum.embedding)
             for datum in ordered
         ]
+
+
+class OpenRouterEmbeddingClient(OpenRouterClient):
+    """Backward-compatible name for callers that only use embeddings."""
+
+
+def chat_request_payload(
+    *,
+    system_prompt: str,
+    messages: Sequence[dict[str, object]],
+    model: str = CHAT_MODEL,
+    reasoning_effort: str = "high",
+    max_tokens: int = 3000,
+) -> dict[str, object]:
+    # Keep this insertion order deliberate. OpenRouter/OpenAI serialize tool
+    # definitions before the stable system message, followed by volatile
+    # conversation/context messages, which is the cache-friendly prefix order.
+    return {
+        "tools": [],
+        "model": model,
+        "reasoning": {"effort": reasoning_effort},
+        "include_reasoning": True,
+        "stream": True,
+        "stream_options": {"include_usage": True},
+        "max_tokens": max_tokens,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            *messages,
+        ],
+    }
+
+
+def _stream_text(value: object) -> str:
+    return value if isinstance(value, str) else ""
+
+
+def _chat_usage(value: object) -> ChatUsage | None:
+    if not isinstance(value, dict):
+        return None
+    prompt_details = value.get("prompt_tokens_details")
+    completion_details = value.get("completion_tokens_details")
+    cached_tokens = (
+        prompt_details.get("cached_tokens", 0) if isinstance(prompt_details, dict) else 0
+    )
+    reasoning_tokens = (
+        completion_details.get("reasoning_tokens", 0) if isinstance(completion_details, dict) else 0
+    )
+    provider_cost = value.get("cost")
+    return ChatUsage(
+        prompt_tokens=_integer(value.get("prompt_tokens")),
+        completion_tokens=_integer(value.get("completion_tokens")),
+        total_tokens=_integer(value.get("total_tokens")),
+        cache_read_input_tokens=max(
+            _integer(value.get("cache_read_input_tokens")),
+            _integer(cached_tokens),
+        ),
+        cache_write_input_tokens=_integer(value.get("cache_write_input_tokens")),
+        reasoning_tokens=_integer(reasoning_tokens),
+        provider_cost_usd=float(provider_cost) if isinstance(provider_cost, int | float) else None,
+    )
+
+
+def _integer(value: object) -> int:
+    return value if isinstance(value, int) and value >= 0 else 0
 
 
 def _retry_after_seconds(response: httpx.Response | None) -> float:

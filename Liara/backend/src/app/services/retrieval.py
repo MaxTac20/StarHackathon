@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
+from typing import Protocol, cast
 
 from sqlalchemy import Select, desc, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +9,7 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from app.models.document_chunk import DocumentChunk
 from app.schemas.retrieval import RetrievedChunk
-from app.services.embeddings import OpenRouterEmbeddingClient
+from app.services.embeddings import EmbeddingBatch
 from app.utils.persian import query_variants
 
 DEFAULT_CANDIDATES_PER_LEG = 50
@@ -162,9 +162,13 @@ class _FusionState:
     lexical_rank: int | None = None
 
 
+class EmbeddingClient(Protocol):
+    async def embed_texts(self, texts: list[str]) -> EmbeddingBatch: ...
+
+
 async def retrieve(
     session: AsyncSession,
-    embedding_client: OpenRouterEmbeddingClient,
+    embedding_client: EmbeddingClient,
     query: str,
     *,
     top_k: int = 10,
