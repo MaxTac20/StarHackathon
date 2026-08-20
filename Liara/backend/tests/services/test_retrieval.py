@@ -52,15 +52,32 @@ def _embedding_handler(captured_inputs: list[str]) -> httpx.MockTransport:
     return httpx.MockTransport(handler)
 
 
-def test_rrf_can_promote_consensus_above_either_legs_winner() -> None:
-    dense = [_chunk("dense-winner", 0.1), _chunk("consensus", 0.2)]
-    lexical = [_chunk("lexical-winner", 1.0), _chunk("consensus", 0.8)]
+def test_rrf_beats_both_legs_on_adversarial_top_three() -> None:
+    relevant = {"relevant-a", "relevant-b", "relevant-c"}
+    dense = [
+        _chunk("dense-noise", 0.1),
+        _chunk("relevant-a", 0.2),
+        _chunk("relevant-b", 0.3),
+        _chunk("relevant-c", 0.4),
+        *[_chunk(f"dense-tail-{index}", 0.5 + index) for index in range(4)],
+    ]
+    lexical = [
+        _chunk("lexical-noise", 1.0),
+        _chunk("relevant-c", 0.9),
+        _chunk("relevant-b", 0.8),
+        _chunk("relevant-a", 0.7),
+        *[_chunk(f"lexical-tail-{index}", 0.6 - index / 10) for index in range(4)],
+    ]
 
     fused = reciprocal_rank_fusion(dense, lexical, top_k=3)
+    dense_relevant = sum(chunk.id in relevant for chunk in dense[:3])
+    lexical_relevant = sum(chunk.id in relevant for chunk in lexical[:3])
+    fused_relevant = sum(chunk.id in relevant for chunk in fused)
 
-    assert fused[0].id == "consensus"
-    assert fused[0].id != dense[0].id
-    assert fused[0].id != lexical[0].id
+    assert [chunk.id for chunk in dense[:3]] != [chunk.id for chunk in lexical[:3]]
+    assert [chunk.id for chunk in fused] == ["relevant-a", "relevant-b", "relevant-c"]
+    assert fused_relevant > dense_relevant
+    assert fused_relevant > lexical_relevant
 
 
 async def test_lexical_leg_recovers_a_persian_match_dense_misses(
@@ -78,11 +95,11 @@ async def test_lexical_leg_recovers_a_persian_match_dense_misses(
 
     async def fake_lexical(
         session: AsyncSession,
-        variants: list[str],
+        query_text: str,
         *,
         limit: int,
     ) -> list[RankedChunk]:
-        assert "پشتیبانگیری" in variants
+        assert query_text == "پشتیبانگیری"
         assert limit == 50
         return [_chunk("postgres-backup", 1.0)]
 
@@ -107,7 +124,7 @@ async def test_lexical_leg_recovers_a_persian_match_dense_misses(
     assert lexical_result.lexical_rank == 1
 
 
-async def test_query_tries_both_zwnj_variants(
+async def test_query_uses_both_zwnj_variants_for_dense_but_only_stripped_for_lexical(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     expected_variants = ["اضافهکردن متغیر", f"اضافه{ZWNJ}کردن متغیر"]
@@ -123,11 +140,11 @@ async def test_query_tries_both_zwnj_variants(
 
     async def fake_lexical(
         session: AsyncSession,
-        variants: list[str],
+        query_text: str,
         *,
         limit: int,
     ) -> list[RankedChunk]:
-        assert variants == expected_variants
+        assert query_text == expected_variants[0]
         return []
 
     monkeypatch.setattr(retrieval_service, "dense_search", fake_dense)
@@ -150,8 +167,17 @@ async def test_query_tries_both_zwnj_variants(
     assert {result.id for result in run.results} == {"joined-match", "zwnj-match"}
 
 
+def test_lexical_query_filters_persian_function_words() -> None:
+    query = "چطور متغیرهای محیطی را از لیارا اضافهکنم؟"
+
+    assert retrieval_service._or_query_terms(query) == ("متغیرهای OR محیطی OR لیارا OR اضافهکنم؟")
+
+
 def test_lexical_statement_uses_simple_configuration() -> None:
-    statement = retrieval_service._lexical_statement("لیارا", limit=10)
+    statement = retrieval_service._lexical_statement(
+        "چطور متغیرهای محیطی را اضافهکنم؟",
+        limit=10,
+    )
     sql = str(
         statement.compile(
             dialect=postgresql.dialect(),  # type: ignore[no-untyped-call]
@@ -160,5 +186,7 @@ def test_lexical_statement_uses_simple_configuration() -> None:
     )
 
     assert "to_tsvector('simple', document_chunks.text_norm)" in sql
-    assert "websearch_to_tsquery('simple', 'لیارا')" in sql
+    assert "websearch_to_tsquery('simple', 'متغیرهای OR محیطی OR اضافهکنم؟')" in sql
+    assert "چطور" not in sql
+    assert " را " not in sql
     assert "'arabic'" not in sql
