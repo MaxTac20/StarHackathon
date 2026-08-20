@@ -7,8 +7,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
+from app.api.deps import DatabaseSession
 from app.schemas.chat import ChatRequest
-from app.services.chat import ChatAnswerer, ChatChunk, get_chat_answerer
+from app.services.chat import ChatAnswerer, ChatChunk, GroundedChatAnswerer
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
@@ -18,6 +19,10 @@ SAFE_STREAM_ERROR = "The answer could not be completed. Please try again."
 
 def sse_event(payload: ChatChunk) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False, separators=(',', ':'))}\n\n"
+
+
+def get_chat_answerer(session: DatabaseSession) -> ChatAnswerer:
+    return GroundedChatAnswerer(session)
 
 
 @router.post("/chat")
@@ -32,7 +37,9 @@ async def chat(
         except asyncio.CancelledError:
             raise
         except Exception:
-            logger.exception("Chat answer stream failed")
+            # Provider exceptions are deliberately opaque: logging the exception
+            # text or traceback can copy a payload or credential fragment.
+            logger.error("Chat answer stream failed")
             yield sse_event({"type": "error", "errorText": SAFE_STREAM_ERROR})
         yield "data: [DONE]\n\n"
 

@@ -34,7 +34,7 @@ export const chatCopy: Record<Locale, ChatCopy> = {
     brandTitle: "پرسش را بپرس؛ مسیر پاسخ را ببین.",
     brandSubtitle:
       "پاسخ‌های دوزبانه با منبع دقیق، کد خوانا و وضعیت واقعی هر مرحله.",
-    demoBadge: "جریان نمایشی",
+    demoBadge: "پاسخ مستند و زنده",
     newChat: "گفت‌وگوی تازه",
     emptyEyebrow: "از مستندات رسمی لیارا",
     emptyTitle: "برای deploy بعدی چه چیزی مبهم است؟",
@@ -78,7 +78,7 @@ export const chatCopy: Record<Locale, ChatCopy> = {
     brandTitle: "Ask the question. Watch the answer take shape.",
     brandSubtitle:
       "Bilingual answers with precise sources, readable code, and honest pipeline stages.",
-    demoBadge: "Fixture stream",
+    demoBadge: "Live grounded answer",
     newChat: "New conversation",
     emptyEyebrow: "Grounded in Liara documentation",
     emptyTitle: "What is unclear about your next deploy?",
