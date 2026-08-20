@@ -61,13 +61,16 @@ Configuration variable applied and restarting django-application
 ```
 
 — the command *and* its observable effect, which no code block on the site carries.
-Extract it from the `ESC]2;…BEL` window-title sequences rather than the raw output
-stream; the title carries the settled command line, while the output stream carries
-keystroke and autocompletion noise.
+The first implementation read settled commands from `ESC]2;…BEL` window-title sequences,
+but a full-corpus measurement found usable OSC-2 titles in only 32 of 90 cast files. Replay
+every output event through `pyte` instead and read the resulting terminal screen: applying
+cursor movement removes keystroke and autocompletion ghost text without discarding commands
+from OSC-0-only or empty-title recordings. At this snapshot, replay recovers 108 command/result
+blocks from 89 cast files; `create-drizzle-app.cast` is the sole final screen with no command.
 
 ## Consequences
 
-- **Anchors join at 93.8%** — 740 of 789 `<Section id>` values match a mirror heading by
+- **Anchors join at 93.7%** — 740 of 790 `<Section id>` values match a mirror heading by
   title. Persian normalization (ZWNJ, yeh/kaf folding) does **not** improve this; the 49
   misses are genuine content divergence, where a self-closing `<Section />` marks a span
   whose visible headings are tab labels. Cite a section anchor when the join succeeds and

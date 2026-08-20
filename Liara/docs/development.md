@@ -14,6 +14,18 @@ After changing an API contract, run `make api-client`. After changing a model, i
 
 Run focused tests while iterating and `make check` before finishing. `make format` applies the repository formatters.
 
+## Documentation corpus
+
+Set `INGEST_CORPUS_DIR` to the pinned local `liara-cloud/docs` checkout, then build the
+retrieval substrate and manifest inventory without network access:
+
+```text
+cd backend
+uv run python -m app.ingest.build
+```
+
+The command writes `data/corpus.jsonl` and `data/manifest.json` at the Liara project root.
+
 ## Useful URLs
 
 - Vite application: <http://localhost:5174>

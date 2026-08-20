@@ -129,6 +129,25 @@ Session ids are recoverable with `grep -m1 "session id:" <scratchpad>/codex-liar
 
 No work remains on the `codex/liara-chat` lane; it is committed on its branch and ready
 for review. It deliberately remains unmerged.
+- [x] Pinned-corpus ingestion: mirror Markdown joined with MDX anchors and OSC-2 cast
+      commands, emitted as 5,250 validated records in `data/corpus.jsonl`; 1,973 chunks
+      have deep-link anchors and 34 carry cast-sourced commands. The same pass emits 68
+      observed manifest leaf paths in `data/manifest.json`. Fixture tests and
+      `make check` passed on 2026-08-20.
+- [x] Pinned-corpus ingestion: mirror Markdown joined with MDX anchors and terminal-replayed
+      casts, emitted as 5,287 validated records in `data/corpus.jsonl`; 1,977 chunks have
+      deep-link anchors and 103 carry cast-sourced commands. Replay recovers 108 command/result
+      blocks from 89 of 90 cast files (`create-drizzle-app` has no command on its final screen).
+      Credential-shaped content is redacted before storage: 246 redactions across 160 pages,
+      including JWT, password-position UUID and generated-alphanumeric, and secret-labelled hex
+      coverage added after an independent audit. The same pass emits 68 observed manifest leaf
+      paths in `data/manifest.json`. All 5,287 records validate, a second pass over stored text
+      and code finds zero residual redactions, required placeholders and unrelated UUIDs remain,
+      the two output files reproduce byte-for-byte, and `make check` passed on 2026-08-20.
+
+## In progress
+
+Nothing.
 
 ## Corpus snapshot
 
@@ -159,43 +178,35 @@ sparse form.
 Ordered by **where the points are**, not by what is most interesting to build. Answer
 quality plus UI/UX is 135 of 300 against 50 for the agentic lanes, so retrieval quality is
 the riskiest thing in the project — excellent agentic surfaces on mediocre retrieval score
-worse than excellent Q&A alone. Step 2 precedes it only because it is a single offline
-afternoon that the retrieval work then reuses — the manifest is also the retrieval
-pre-filter, so building it first is not a detour.
+worse than excellent Q&A alone.
 
 1. **Smoke-test the inherited stack** — `make install`, `make dev`, `make up`. Confirm the
    template runs clean on the new ports before building on it.
-2. **The manifest, one symbol class.** Parse every fenced ```json block in the corpus,
-   flatten to dotted key paths, emit `data/manifest.json`, and diff it against the
-   canonical `liara.json` reference page. One afternoon, no LLM, no frontend. It yields
-   the highest-fabrication-risk symbol class, the shared harness every later extractor
-   reuses, and a self-proving finding: the reference page omits `go.mainFile`,
-   `django.settingsFile`, `image`, `python.args`, and leaves `go` out of the platform enum.
-3. **Ingestion and retrieval**, per `DESIGN.md` §5–6 — the crawl, Persian normalization,
-   chunking, embeddings, hybrid retrieval. Snapshot and version the crawl output so scores
-   stay comparable. **This is the 135-point path and it starts now, not after the agentic
-   lanes.**
-4. **The golden set, before trusting any retrieval number.** ~150 queries, 15–20%
+2. **Embeddings and hybrid retrieval**, per `DESIGN.md` §6, over the pinned
+   `data/corpus.jsonl`: 1024-dimensional Qwen3 embeddings, normalized lexical search,
+   fusion and reranking. **This is the 135-point path and it starts now, not after the
+   agentic lanes.**
+3. **The golden set, before trusting any retrieval number.** ~150 queries, 15–20%
    unanswerable, fact-list rubric, corpus version recorded with every score. Weight it
    toward the multi-hop questions in `DESIGN.md` §3.1 — those are what the rubric means by
    "complex", and a set of easy lookups will report a healthy number while the product
    fails the questions that matter.
-5. **The Q&A surface end to end** — cited answers, deploy-path disambiguation, the
+4. **The Q&A surface end to end** — cited answers, deploy-path disambiguation, the
    Console-only surface, the refusal contract, conversation continuation. Bilingual and RTL
    from the first commit rather than retrofitted.
-6. **Prove the visual review loop.** Driving the running app in a browser and reviewing
+5. **Prove the visual review loop.** Driving the running app in a browser and reviewing
    screenshots is load-bearing for the 55 UI/UX points and for the promise that we
    self-evaluate rather than relying on a human to find breakage. Prove it as soon as there
    is a real page to look at.
-7. **The validator and its fixtures.** `liara.schema.json`, `rules.yaml`, `plans.yaml` and
+6. **The validator and its fixtures.** `liara.schema.json`, `rules.yaml`, `plans.yaml` and
    a pure `validate(bundle) -> list[Finding]`, with ~15 fixture pairs whose broken half is
    copied verbatim from Liara's own documentation. Testable with no model, no frontend and
    no Liara account. If it cannot go green in a day, the idea is wrong cheaply.
-8. **Break our own deploys.** Deliberately fail ~12 deploys on the credited Liara account,
+7. **Break our own deploys.** Deliberately fail ~12 deploys on the credited Liara account,
    one per error cluster, and capture the verbatim logs. This is the only source of Liara's
    actual log framing, and the captures triple as matcher fixtures, regression tests and
    demo script. No competitor working from documentation alone can do this.
-9. **`docs/EVALUATION.md`** — all 27 rubric sub-criteria mapped to concrete checks with a
+8. **`docs/EVALUATION.md`** — all 27 rubric sub-criteria mapped to concrete checks with a
    verdict and evidence each.
 
 ## Blocked
