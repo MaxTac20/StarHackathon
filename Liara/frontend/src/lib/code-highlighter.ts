@@ -33,7 +33,6 @@ type HighlightLanguage = keyof typeof languageLoaders;
 
 const languageAliases: Readonly<Record<string, HighlightLanguage>> = {
   bash: "shellscript",
-  "c#": "csharp",
   cs: "csharp",
   csharp: "csharp",
   dockerfile: "docker",
@@ -46,7 +45,6 @@ const languageAliases: Readonly<Record<string, HighlightLanguage>> = {
   py: "python",
   python: "python",
   sh: "shellscript",
-  shellscript: "shellscript",
   ts: "typescript",
   typescript: "typescript",
 };

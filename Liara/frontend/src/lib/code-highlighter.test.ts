@@ -56,16 +56,23 @@ describe("limited code highlighter", () => {
     ).toBe(true);
   });
 
-  it.each(["", "config", "conf", "laravel", "txt", "gitignore", "ruby"])(
-    "keeps the unsupported fence label %s as plain text",
-    async (language) => {
-      const code = "GUNICORN_TIMEOUT=120\nliara.json";
-      const result = await highlight(language, code);
+  it.each([
+    "",
+    "c#",
+    "config",
+    "conf",
+    "gitignore",
+    "laravel",
+    "ruby",
+    "shellscript",
+    "txt",
+  ])("keeps the unsupported fence label %s as plain text", async (language) => {
+    const code = "GUNICORN_TIMEOUT=120\nliara.json";
+    const result = await highlight(language, code);
 
-      expect(textFrom(result)).toBe(code);
-      expect(hasSyntaxColors(result)).toBe(false);
-    },
-  );
+    expect(textFrom(result)).toBe(code);
+    expect(hasSyntaxColors(result)).toBe(false);
+  });
 
   it("treats an invalid JSON label as a hint and preserves the content", async () => {
     const code = "PORT=3000\nThis is configuration, not JSON.";
