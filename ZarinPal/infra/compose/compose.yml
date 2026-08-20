@@ -1,0 +1,59 @@
+name: zarinpal-dashboard
+
+services:
+  migrate:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+      target: runtime
+    image: ${APP_IMAGE:-zarinpal-dashboard:local}
+    command: ["alembic", "upgrade", "head"]
+    env_file:
+      - ../../.env
+    environment: &app-environment
+      APP_ENV: production
+      DEBUG: "false"
+      DATABASE_URL: ""
+      POSTGRES_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+      target: runtime
+    image: ${APP_IMAGE:-zarinpal-dashboard:local}
+    env_file:
+      - ../../.env
+    environment: *app-environment
+    ports:
+      - "${PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  postgres:
+    image: postgres:18.4-alpine3.23
+    env_file:
+      - ../../.env
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
