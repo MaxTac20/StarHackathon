@@ -167,32 +167,53 @@ class CitationLineRenderer:
 
     def __init__(self, sources: Sequence[SourceBinding]) -> None:
         self._urls = {source.source_id: source.chunk.cite_url for source in sources}
-        self._numbers = {source.source_id: index for index, source in enumerate(sources, start=1)}
+        self._citable_ids = {source.source_id for source in sources if not source.defective}
+        url_numbers: dict[str, int] = {}
+        self._numbers: dict[str, int] = {}
+        for source in sources:
+            number = url_numbers.setdefault(source.chunk.cite_url, len(url_numbers) + 1)
+            self._numbers[source.source_id] = number
         self._pending = ""
+        self._preamble = ""
         self._inside_code_fence = False
         self.citation_count = 0
+        self.rejected_line_count = 0
 
     def feed(self, text: str) -> list[str]:
         self._pending += text
         rendered: list[str] = []
         while "\n" in self._pending:
             line, self._pending = self._pending.split("\n", maxsplit=1)
-            rendered.append(self._render_line(f"{line}\n"))
+            self._append_rendered(rendered, self._render_line(f"{line}\n"))
         return rendered
 
     def finish(self) -> list[str]:
-        rendered = [self._render_line(self._pending)] if self._pending else []
+        rendered: list[str] = []
+        if self._pending:
+            self._append_rendered(rendered, self._render_line(self._pending))
         self._pending = ""
         if not self.citation_count:
             raise CitationIntegrityError("answer contained no retrieved-source citation")
         return rendered
+
+    def _append_rendered(self, rendered: list[str], line: str) -> None:
+        if not line:
+            return
+        if not self.citation_count:
+            self._preamble += line
+            return
+        if self._preamble:
+            rendered.append(self._preamble)
+            self._preamble = ""
+        rendered.append(line)
 
     def _render_line(self, line: str) -> str:
         stripped = line.strip()
         if stripped == NO_GROUNDING:
             raise NoGrounding
         if contains_raw_link(line):
-            raise CitationIntegrityError("model emitted a raw link")
+            self.rejected_line_count += 1
+            return ""
 
         is_fence = stripped.startswith("```")
         if is_fence:
@@ -203,10 +224,12 @@ class CitationLineRenderer:
 
         markers = SOURCE_MARKER_RE.findall(line)
         if not markers:
-            raise CitationIntegrityError("prose line lacked a retrieved-source citation")
+            self.rejected_line_count += 1
+            return ""
         for source_id in markers:
-            if source_id not in self._urls:
-                raise CitationIntegrityError("answer cited an unretrieved source")
+            if source_id not in self._citable_ids:
+                self.rejected_line_count += 1
+                return ""
 
         def materialize(match: re.Match[str]) -> str:
             source_id = match.group(1)
@@ -313,17 +336,24 @@ class GroundedChatAnswerer:
 
             reasoning_renderer = SafeReasoningRenderer()
             citation_renderer = CitationLineRenderer(bindings)
-            reasoning_started = False
+            reasoning_started = True
             reasoning_ended = False
             text_started = False
             refused = False
 
+            yield {"type": "reasoning-start", "id": reasoning_id}
+            yield {
+                "type": "reasoning-delta",
+                "id": reasoning_id,
+                "delta": evidence_summary(bindings, is_persian=is_persian),
+            }
             async for event in provider.stream_chat(
                 system_prompt=SYSTEM_PROMPT,
                 messages=provider_messages(
                     request,
                     latest_question=latest_question,
                     bindings=bindings,
+                    is_persian=is_persian,
                 ),
                 reasoning_effort="high",
             ):
@@ -331,9 +361,6 @@ class GroundedChatAnswerer:
                     usage = event.usage
                     continue
                 if event.kind == "reasoning" and not text_started:
-                    if not reasoning_started:
-                        reasoning_started = True
-                        yield {"type": "reasoning-start", "id": reasoning_id}
                     for fragment in reasoning_renderer.feed(event.text):
                         if fragment:
                             yield {
@@ -396,7 +423,7 @@ class GroundedChatAnswerer:
             else:
                 try:
                     final_fragments = citation_renderer.finish()
-                except NoGrounding:
+                except CitationIntegrityError, NoGrounding:
                     yield {
                         "type": "data-notice",
                         "data": {"kind": "gap", "text": gap_notice(is_persian=is_persian)},
@@ -417,6 +444,19 @@ class GroundedChatAnswerer:
                     if not text_started:
                         raise CitationIntegrityError("model returned no answer")
                     yield {"type": "text-end", "id": text_id}
+                    if citation_renderer.rejected_line_count:
+                        logger.warning(
+                            "chat_output_trimmed request_id=%s unsupported_lines=%d",
+                            request_id,
+                            citation_renderer.rejected_line_count,
+                        )
+                        yield {
+                            "type": "data-notice",
+                            "data": {
+                                "kind": "gap",
+                                "text": trimmed_output_notice(is_persian=is_persian),
+                            },
+                        }
                     outcome = "answered"
 
             yield {"type": "finish", "finishReason": "stop"}
@@ -478,10 +518,11 @@ async def retrieve_for_answer(
     retriever: Retriever,
     top_k: int,
 ) -> RetrievalRun:
-    runs = [
+    raw_runs = [
         await retriever(session, provider, planned_query, top_k=top_k)
         for planned_query in answer_retrieval_queries(query)
     ]
+    runs = [filter_retrieval_run(query, run) for run in raw_runs]
     return RetrievalRun(
         query_variants=[query for run in runs for query in run.query_variants],
         results=interleave_retrieval_results(runs, top_k=top_k),
@@ -517,6 +558,7 @@ def answer_retrieval_queries(query: str) -> list[str]:
     upload_limit = any(token in folded for token in ("upload", "اپلود", "413")) and any(
         token in folded for token in ("limit", "محدودیت", "حجم", "nginx", "413")
     )
+    worker_timeout = any(token in folded for token in ("gunicorn_timeout", "worker timeout"))
 
     # The corpus's dedicated ISR page already retrieves both router variants
     # from the full question. A generic persistence expansion adds unrelated
@@ -528,13 +570,17 @@ def answer_retrieval_queries(query: str) -> list[str]:
             else "ephemeral filesystem user uploads create disk and disk mount path"
         )
 
+    if worker_timeout:
+        timeout_query = "Django WORKER TIMEOUT GUNICORN_TIMEOUT environment variable"
+        planned.insert(0, timeout_query)
+
     if upload_limit:
         planned.append(
             "محدودیت حجم آپلود Nginx و client_max_body_size و خطای 413"
             if is_persian
             else "Nginx upload limit client_max_body_size 413"
         )
-    return list(dict.fromkeys(planned[:3]))
+    return list(dict.fromkeys(planned))[:3]
 
 
 def interleave_retrieval_results(
@@ -562,6 +608,136 @@ def interleave_retrieval_results(
             break
         rank += 1
     return results
+
+
+_PLATFORM_ALIASES = {
+    "django": ("django", "جنگو"),
+    "flask": ("flask", "فلسک"),
+    "python": ("python", "پایتون"),
+    "php": ("php",),
+    "laravel": ("laravel", "لاراول"),
+    "nodejs": ("node.js", "nodejs", "node", "نود"),
+    "nextjs": ("next.js", "nextjs", "next", "نکست"),
+    "docker": ("docker", "داکر"),
+    "dotnet": (".net", "dotnet", "داتنت"),
+    "go": ("golang", "go", "گو"),
+    "react": ("react", "ریاکت"),
+    "angular": ("angular", "انگولار"),
+    "static": ("static", "استاتیک"),
+}
+_PLATFORM_SEGMENTS = frozenset(_PLATFORM_ALIASES)
+
+
+def filter_retrieval_run(query: str, run: RetrievalRun) -> RetrievalRun:
+    filtered = filter_retrieval_results(query, run.results)
+    return RetrievalRun(
+        query_variants=run.query_variants,
+        results=filtered,
+        embedding_tokens=run.embedding_tokens,
+        embedding_latency_seconds=run.embedding_latency_seconds,
+    )
+
+
+def filter_retrieval_results(
+    query: str,
+    results: Sequence[RetrievedChunk],
+) -> list[RetrievedChunk]:
+    folded = normalize(query).casefold()
+    named_platforms = {
+        platform
+        for platform, aliases in _PLATFORM_ALIASES.items()
+        if any(_contains_alias(folded, alias) for alias in aliases)
+    }
+    paas_question = bool(named_platforms) or any(
+        token in folded
+        for token in (
+            "deploy",
+            "استقرار",
+            "برنامه",
+            "liara.json",
+            "nginx",
+            "gunicorn",
+        )
+    )
+    iaas_question = any(
+        token in folded
+        for token in (
+            "iaas",
+            "vps",
+            "سرور مجازی",
+            "سرور ابری",
+            "ubuntu",
+            "debian",
+            "centos",
+        )
+    )
+    ai_question = any(
+        token in folded
+        for token in (
+            "هوش مصنوعی",
+            "openai",
+            "مدل زبانی",
+            "chatbot",
+            "ai service",
+        )
+    )
+    database_question = any(
+        token in folded
+        for token in (
+            "database",
+            "دیتابیس",
+            "پایگاه داده",
+            "postgres",
+            "mysql",
+            "mongodb",
+            "redis",
+            "rabbitmq",
+        )
+    )
+    object_storage_question = any(
+        token in folded
+        for token in (
+            "object storage",
+            "ذخیرهسازی ابری",
+            "bucket",
+            "باکت",
+            "s3",
+        )
+    )
+    email_question = any(token in folded for token in ("email", "ایمیل", "smtp"))
+
+    filtered: list[RetrievedChunk] = []
+    for result in results:
+        if paas_question and not iaas_question and result.path.startswith("iaas/"):
+            continue
+        if not ai_question and result.path.startswith("ai/"):
+            continue
+        if paas_question and not result.path.startswith(("paas/", "references/")):
+            allowed_related_surface = (
+                database_question
+                and result.path.startswith("dbaas/")
+                or object_storage_question
+                and result.path.startswith("object-storage/")
+                or email_question
+                and result.path.startswith("email-server/")
+                or iaas_question
+                and result.path.startswith("iaas/")
+                or ai_question
+                and result.path.startswith("ai/")
+            )
+            if not allowed_related_surface:
+                continue
+        path_platforms = set(result.path.split("/")) & _PLATFORM_SEGMENTS
+        if named_platforms and path_platforms and path_platforms.isdisjoint(named_platforms):
+            continue
+        filtered.append(result)
+    return filtered
+
+
+def _contains_alias(text: str, alias: str) -> bool:
+    if alias.isascii() and alias.replace(".", "").isalnum():
+        return re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", text) is not None
+    return alias in text
 
 
 def looks_like_follow_up(text: str) -> bool:
@@ -712,6 +888,7 @@ def provider_messages(
     *,
     latest_question: str,
     bindings: Sequence[SourceBinding],
+    is_persian: bool,
 ) -> list[dict[str, object]]:
     history: list[dict[str, object]] = []
     conversational = [
@@ -732,6 +909,9 @@ def provider_messages(
         {
             "role": "user",
             "content": (
+                f"REQUIRED ANSWER LANGUAGE: {'Persian' if is_persian else 'English'}.\n"
+                "Use that language for all prose even when retrieved sources use another "
+                "language.\n\n"
                 f"LATEST QUESTION:\n{redact_credentials(latest_question)}\n\n"
                 f"RETRIEVED SOURCE BLOCKS:\n{source_blocks}"
             ),
@@ -754,6 +934,8 @@ def _source_block(binding: SourceBinding) -> str:
 
 def _display_path(chunk: RetrievedChunk) -> str:
     chunk_path = chunk.id.rsplit(":", maxsplit=1)[0]
+    if chunk_path.endswith("#page"):
+        return chunk.path
     return chunk_path if chunk_path.startswith(chunk.path) else chunk.path
 
 
@@ -774,6 +956,42 @@ def gap_notice(*, is_persian: bool) -> str:
         "The retrieved documentation did not contain reliable support for this question, "
         "so no ungrounded answer was generated."
     )
+
+
+def trimmed_output_notice(*, is_persian: bool) -> str:
+    if is_persian:
+        return (
+            "بخش‌هایی از پیش‌نویس که منبع بازیابی‌شده نداشتند حذف شدند؛ "
+            "فقط ادعاهای دارای ارجاع نمایش داده می‌شوند."
+        )
+    return (
+        "Draft lines without a retrieved source were omitted; "
+        "only claims with validated citations are shown."
+    )
+
+
+def evidence_summary(
+    bindings: Sequence[SourceBinding],
+    *,
+    is_persian: bool,
+) -> str:
+    page_count = len({binding.chunk.path for binding in bindings})
+    defect_count = sum(binding.defective for binding in bindings)
+    if is_persian:
+        summary = (
+            f"{len(bindings)} بخش از {page_count} صفحه بازیابی شد؛ "
+            "اکنون هر ادعا با شناسه‌های همین منابع تطبیق داده می‌شود."
+        )
+        if defect_count:
+            summary += f" {defect_count} منبع معیوب فقط برای افشای نقص نگه داشته شد."
+        return summary
+    summary = (
+        f"Retrieved {len(bindings)} sections across {page_count} pages; "
+        "each claim is now being checked against only those source IDs."
+    )
+    if defect_count:
+        summary += f" {defect_count} defective source is retained only for disclosure."
+    return summary
 
 
 def refusal_text(*, is_persian: bool) -> str:
