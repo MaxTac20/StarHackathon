@@ -231,10 +231,13 @@ export function ChatExperience() {
                         <p className="mb-3 text-xs font-medium text-muted-foreground">
                           {copy.suggestionsLabel}
                         </p>
-                        <Suggestions className="justify-start pb-2 sm:justify-center">
+                        <Suggestions
+                          className="justify-start pb-2 sm:justify-center"
+                          dir={locale === "fa" ? "rtl" : "ltr"}
+                        >
                           {copy.suggestions.map((suggestion) => (
                             <Suggestion
-                              className="h-auto max-w-[18rem] whitespace-normal rounded-xl px-4 py-2.5 text-start leading-6"
+                              className="h-auto max-w-[calc(100cqw-0.5rem)] whitespace-normal rounded-xl px-4 py-2.5 text-start leading-6 sm:max-w-[18rem]"
                               disabled={isGenerating}
                               key={suggestion}
                               onClick={submitText}
