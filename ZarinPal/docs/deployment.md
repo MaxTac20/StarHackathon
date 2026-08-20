@@ -4,7 +4,23 @@
 
 `infra/docker/Dockerfile` has independent frontend, backend dependency, and runtime stages. pnpm installs the frozen frontend lockfile and builds Vite. uv installs only frozen production Python dependencies. The final Python slim image contains neither Node.js nor pnpm, runs as UID/GID 10001, and serves both application halves through Uvicorn.
 
-Build with `make build` or deploy `infra/compose/compose.yml`. Use a unique `SECRET_KEY` and PostgreSQL password in the deployment environment. Terminate TLS at the platform/load-balancer level and forward proxy headers only from trusted infrastructure if changing the included server command.
+Build with `make build` or deploy `infra/compose/compose.yml`. Use a unique `SECRET_KEY`,
+`APP_PASSWORD`, and PostgreSQL password in the deployment environment. Terminate TLS at
+the platform/load-balancer level and forward proxy headers only from trusted
+infrastructure if changing the included server command.
+
+## Demo credential warning
+
+The product intentionally defaults to `APP_PASSWORD=CHANGE_ME` and always shows that
+default on the login screen, including production deployments. Override it for any
+internet-accessible instance. This shared-password gateway is for judging and demos; it
+does not provide named users, roles, audit attribution, password recovery, or merchant
+identity authentication.
+
+Sessions are signed by `SECRET_KEY`, stored in `HttpOnly` cookies, and expire after eight
+hours. Changing `APP_PASSWORD` does not revoke already-issued cookies immediately. Rotate
+`SECRET_KEY` to invalidate all active sessions, understanding that every viewer will be
+signed out.
 
 ## Migrations
 

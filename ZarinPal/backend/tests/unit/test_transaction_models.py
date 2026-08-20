@@ -49,3 +49,14 @@ def test_analytics_indexes_start_with_merchant_scope() -> None:
         for index in indexes:
             if index.name and index.name.startswith(f"ix_{table_name}_merchant_"):
                 assert list(index.columns)[0].name == "merchant_id"
+
+
+def test_category_filter_has_a_covering_merchant_index() -> None:
+    indexes = Base.metadata.tables["payment_sessions"].indexes
+    category_index = next(
+        index for index in indexes if index.name == "ix_payment_sessions_category_merchant"
+    )
+    assert [column.name for column in category_index.columns] == [
+        "category_id",
+        "merchant_id",
+    ]

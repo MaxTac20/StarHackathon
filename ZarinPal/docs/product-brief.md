@@ -46,6 +46,11 @@ Every query is scoped on the server to the current merchant. A client-supplied
 `merchant_key` must never be treated as authorization. Cross-merchant views, if ever
 needed, are a separately authorized internal product.
 
+For this submission, the password-protected merchant selector is an explicit demo-operator
+surface and is the only cross-merchant view. Once a merchant is selected, the signed
+server session establishes the merchant scope used by dashboard APIs. It should not be
+presented as real merchant-account authentication.
+
 ### Explainable analytics
 
 Every KPI and derived chart series follows a named, versioned metric contract. The UI

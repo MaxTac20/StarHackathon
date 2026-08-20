@@ -4,6 +4,9 @@
 
 Copy `.env.example` to `.env`, run `make install`, and use `make dev`. This starts Vite and Uvicorn with reload. Start only the development PostgreSQL service when database work is needed, then run `make db-upgrade`.
 
+The demo login defaults to `CHANGE_ME`. Override it with the server-only `APP_PASSWORD`
+setting; do not put credentials in any `VITE_*` variable.
+
 Use `make dev-docker` when local Python/Node installations are undesirable. Source is bind-mounted while virtual environments, node modules, and PostgreSQL data use named volumes.
 
 ## Typical changes

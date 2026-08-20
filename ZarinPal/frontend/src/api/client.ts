@@ -14,6 +14,7 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const response = await fetch(path, {
     ...init,
+    credentials: "same-origin",
     headers: { Accept: "application/json", ...init?.headers },
   });
 
@@ -28,5 +29,6 @@ export async function apiFetch<T>(
     throw new ApiError(message, response.status);
   }
 
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }

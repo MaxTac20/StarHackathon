@@ -38,11 +38,17 @@ make data-download
 
 Open <http://localhost:5175>. Vite proxies `/api` to FastAPI at port 8003. API docs are at <http://localhost:8003/docs> in development. The dataset is stored locally as `data/challenge_data.csv.gz` and `data/challenge_data.csv`; `data/` is intentionally ignored by Git. See [the dataset script guide](scripts/README.md) for rerunning or refreshing it.
 
-The application health endpoint does not require a database. Start PostgreSQL before using database-backed features:
+Sign in through the demo gateway with the default password `CHANGE_ME`, then select a
+merchant. Set `APP_PASSWORD` in `.env` to use another shared demo password. Each browser
+gets an independent eight-hour session, so concurrent viewers can select different
+merchants.
+
+The application health endpoint does not require a database. Start PostgreSQL and load
+the downloaded snapshot before using merchant selection:
 
 ```bash
 make db-up
-make db-upgrade
+make db-seed
 ```
 
 ## Docker development
@@ -56,13 +62,15 @@ Open <http://localhost:5175>. Frontend, backend, and PostgreSQL run separately w
 
 ## Production-style run
 
-Change `POSTGRES_PASSWORD` and `SECRET_KEY` in `.env`, then:
+Change `POSTGRES_PASSWORD`, `SECRET_KEY`, and `APP_PASSWORD` in `.env`, then:
 
 ```bash
 make up
 ```
 
-Open <http://localhost:8003> and <http://localhost:8003/example>. Compose first runs the one-shot Alembic migration service, then starts the application. PostgreSQL has no host port in production Compose.
+Open <http://localhost:8003>. Compose first runs the one-shot Alembic migration service,
+then starts the application. Sign in, choose a merchant, and use the protected dashboard
+or system-status routes. PostgreSQL has no host port in production Compose.
 
 To stop or inspect it:
 
@@ -76,6 +84,10 @@ make down
 All backend configuration comes from environment variables through `backend/src/app/core/config.py`. Root `.env` is consumed by Compose; local backend commands also discover it. Copy `.env.example` and never commit `.env`.
 
 Variables prefixed with `VITE_` are public and embedded in frontend assets. Never store secrets in them. API requests use relative `/api/...` URLs, so no CORS setup is needed in the normal workflow.
+
+`APP_PASSWORD` is read only by FastAPI and must never use a `VITE_` prefix. The login UI
+always displays `CHANGE_ME` as the documented default even when the deployment overrides
+it; this is an intentional demo-product choice, not production-grade user authentication.
 
 ## Database migrations
 

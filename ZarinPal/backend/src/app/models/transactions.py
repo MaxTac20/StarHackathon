@@ -141,6 +141,7 @@ class PaymentSession(Base):
             "verify_type IN ('Automated', 'Manual')", name="ck_payment_sessions_verify_type"
         ),
         Index("ix_payment_sessions_merchant_created", "merchant_id", "created_at"),
+        Index("ix_payment_sessions_category_merchant", "category_id", "merchant_id"),
         Index(
             "ix_payment_sessions_merchant_terminal_created",
             "merchant_id",

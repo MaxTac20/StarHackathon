@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[3]
@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     secret_key: SecretStr = SecretStr("development-only-change-me")
+    app_password: SecretStr = SecretStr("CHANGE_ME")
+    session_max_age_seconds: int = Field(default=8 * 60 * 60, ge=300)
     host: str = "0.0.0.0"
     port: int = 8000
     static_dir: Path = BACKEND_DIR / "static"

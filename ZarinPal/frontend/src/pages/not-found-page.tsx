@@ -16,7 +16,7 @@ export function NotFoundPage() {
       <Typography component="h1" variant="h1">
         {messages.notFound}
       </Typography>
-      <Button component={Link} to="/" variant="outlined">
+      <Button component={Link} to="/dashboard" variant="outlined">
         {messages.returnHome}
       </Button>
     </Stack>

@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
@@ -27,6 +28,14 @@ app = FastAPI(
     redoc_url="/redoc" if settings.is_development else None,
     openapi_url="/openapi.json" if settings.is_development else None,
     lifespan=lifespan,
+)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.secret_key.get_secret_value(),
+    session_cookie="zarinpal_session",
+    max_age=settings.session_max_age_seconds,
+    same_site="lax",
+    https_only=not settings.is_development,
 )
 app.include_router(api_router, prefix="/api")
 
